@@ -1,7 +1,7 @@
 cmake_minimum_required (VERSION 2.8.10)
 project(gazon)
 
-add_definitions(-Wall -Wextra -g -fno-stack-protector -z execstack -lpthread -std=gnu11)
+add_definitions(-Wall -Wextra -g -fno-stack-protector -z execstack -lpthread -std=c++11)
 set(COMPILE_FLAGS "-m32" LINK_FLAGS "-m32")
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin/)
@@ -13,8 +13,10 @@ include_directories(
 add_executable(server
   include/grass.h
   include/common.h
+  include/config.h
   src/grass.cpp
   src/server.cpp
+  src/config.cpp
 )
 
 add_executable(client
@@ -22,6 +24,8 @@ add_executable(client
   include/common.h
   src/grass.cpp
   src/client.cpp
+  include/config.h
+  src/config.cpp
 )
 
 message(${CMAKE_BINARY_DIR})

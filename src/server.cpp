@@ -5,6 +5,7 @@
 #include <arpa/inet.h>
 #include <unordered_map>
 #include <common.h>
+#include <config.h>
 
 static struct User **userlist;
 static int numUsers;
@@ -139,16 +140,19 @@ void connectAndListen(uint16_t port, int server_socket) {
 }
 
 int main() {
-    uint16_t port = 31337;
     // TODO:
     // Parse the rass.conf file
     // Listen to the port and handle each connection
     int server_socket = -1;
     try {
-        connectAndListen(port, server_socket);
+        Config config = Config::fromFile("grass.conf");
+        connectAndListen(config.port, server_socket);
     } catch (NetworkingException const& e) {
         std::cout<<"[Networking] "<<e.what()<<std::endl;
+    } catch (ConfigException const& e) {
+        std::cout<<"[Config]"<<e.what()<<std::endl;
     }
+    
     if (server_socket >= 0)
         close(server_socket);
 }
