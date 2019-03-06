@@ -4,7 +4,7 @@ project(gazon)
 add_definitions(-Wall -Wextra -g -fno-stack-protector -z execstack -lpthread -std=gnu11)
 set(COMPILE_FLAGS "-m32" LINK_FLAGS "-m32")
 
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/../bin/)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin/)
 
 include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/include
@@ -12,14 +12,16 @@ include_directories(
 
 add_executable(server
   include/grass.h
-  src/grass.c
-  src/server.c
+  include/common.h
+  src/grass.cpp
+  src/server.cpp
 )
 
 add_executable(client
   include/grass.h
-  src/grass.c
-  src/client.c
+  include/common.h
+  src/grass.cpp
+  src/client.cpp
 )
 
 message(${CMAKE_BINARY_DIR})
