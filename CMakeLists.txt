@@ -6,26 +6,31 @@ set(COMPILE_FLAGS "-m32" LINK_FLAGS "-m32")
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin/)
 
+file(GLOB_RECURSE COMMONSH ${PROJECT_SOURCE_DIR}/src/common/*.h)
+file(GLOB_RECURSE CLIENTH ${PROJECT_SOURCE_DIR}/src/client/*.h)
+file(GLOB_RECURSE SERVERH ${PROJECT_SOURCE_DIR}/src/server/*.h)
+file(GLOB_RECURSE COMMONSCPP ${PROJECT_SOURCE_DIR}/src/common/*.cpp)
+file(GLOB_RECURSE CLIENTCPP ${PROJECT_SOURCE_DIR}/src/client/*.cpp)
+file(GLOB_RECURSE SERVERCPP ${PROJECT_SOURCE_DIR}/src/server/*.cpp)
+
 include_directories(
-  ${CMAKE_CURRENT_SOURCE_DIR}/include
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/common
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/client
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/server
 )
 
 add_executable(server
-  include/grass.h
-  include/common.h
-  include/config.h
-  src/grass.cpp
-  src/server.cpp
-  src/config.cpp
+  ${COMMONSH}
+  ${SERVERH}
+  ${COMMONSCPP}
+  ${SERVERCPP}
 )
 
 add_executable(client
-  include/grass.h
-  include/common.h
-  src/grass.cpp
-  src/client.cpp
-  include/config.h
-  src/config.cpp
+  ${COMMONSH}
+  ${CLIENTH}
+  ${COMMONSCPP}
+  ${CLIENTCPP}
 )
 
 message(${CMAKE_BINARY_DIR})
