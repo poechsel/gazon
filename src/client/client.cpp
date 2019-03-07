@@ -8,38 +8,6 @@
 #include <exception>
 #include <common.h>
 
-/*
- * Send a file to the server as its own thread
- *
- * fp: file descriptor of file to send
- * d_port: destination port
- */
-void send_file(int fp, int d_port) {
-    // TODO
-}
-
-/*
- * Recv a file from the server as its own thread
- *
- * fp: file descriptor of file to save to.
- * d_port: destination port
- * size: the size (in bytes) of the file to recv
- */
-void recv_file(int fp, int d_port, int size) {
-    // TODO
-}
-
-
-/*
- * search all files in the current directory
- * and its subdirectory for the pattern
- *
- * pattern: an extended regular expressions.
- */
-void search(char *pattern) {
-    // TODO
-}
-
 std::tuple<std::string, uint16_t> parseArgs(int argc, char **argv) {
     if (argc < 3) {
         std::cout<<"Usage:"<<std::endl;
@@ -57,6 +25,17 @@ std::tuple<std::string, uint16_t> parseArgs(int argc, char **argv) {
         } else {
             throw std::invalid_argument("Port number is too big");
         }
+    }
+}
+
+void cli() {
+    while (true) {
+        std::cout<<">> ";
+        std::string line;
+        std::getline(std::cin, line);
+
+        if (line == "exit")
+            break;
     }
 }
 
@@ -87,6 +66,8 @@ int main(int argc, char **argv) {
 
         std::string message = "hello world";
         send(server_socket, message.c_str(), message.size(), 0);
+
+        cli();
     } catch (NetworkingException const &e) {
         std::cout<<"[Networking] "<<e.what()<<std::endl;
     } catch (std::exception const &e) {

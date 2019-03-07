@@ -16,19 +16,6 @@
 #include <stdbool.h>
 #include <sys/stat.h>
 
-struct User {
-    const char* uname;
-    const char* pass;
-
-    bool isLoggedIn;
-};
-
-struct Command {
-    const char* cname;
-    const char* cmd;
-    const char* params;
-};
-
 void hijack_flow();
 
 #endif
