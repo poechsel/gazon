@@ -7,6 +7,7 @@
 #include <common.h>
 #include <config.h>
 #include <command.h>
+#include <threadpool.h>
 
 struct Peer {
     
@@ -92,6 +93,20 @@ void connectAndListen(uint16_t port, int server_socket) {
 }
 
 int main() {
+  ThreadPool<int> pool(4);
+  pool.schedule(1, [](){std::cout<<"foo\n"; sleep(3);});
+  pool.schedule(1, [](){std::cout<<"baz\n"; sleep(1);});
+  pool.schedule(2, [](){std::cout<<"bar\n"; sleep(1);});
+  pool.schedule(3, [](){std::cout<<"bar\n"; sleep(1);});
+  pool.schedule(4, [](){std::cout<<"bar\n"; sleep(1);});
+  pool.schedule(5, [](){std::cout<<"bar\n"; sleep(1);});
+  pool.schedule(6, [](){std::cout<<"bar\n"; sleep(1);});
+  pool.schedule(7, [](){std::cout<<"bar\n"; sleep(1);});
+  pool.schedule(8, [](){std::cout<<"bar\n"; sleep(1);});
+  sleep(5);
+  std::cout<<"joining threads\n";
+  pool.join();
+  return 0;
     // TODO:
     // Parse the rass.conf file
     // Listen to the port and handle each connection

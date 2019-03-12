@@ -1,7 +1,7 @@
 cmake_minimum_required (VERSION 2.8.10)
 project(gazon)
 
-add_definitions(-Wall -Wextra -g -fno-stack-protector -z execstack -lpthread -std=c++11)
+add_definitions(-Wall -Wextra -g -fno-stack-protector -z execstack -lpthread -pthread -std=c++11)
 set(COMPILE_FLAGS "-m32" LINK_FLAGS "-m32")
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin/)
@@ -31,6 +31,13 @@ add_executable(client
   ${CLIENTH}
   ${COMMONSCPP}
   ${CLIENTCPP}
+)
+
+TARGET_LINK_LIBRARIES( server
+  pthread
+)
+TARGET_LINK_LIBRARIES( client
+  pthread
 )
 
 message(${CMAKE_BINARY_DIR})
