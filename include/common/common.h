@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdexcept>
 #include <exception>
 
 struct NetworkingException : public std::runtime_error {
