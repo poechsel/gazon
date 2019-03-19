@@ -93,7 +93,7 @@ void connectAndListen(uint16_t port, int server_socket) {
 }
 
 int main() {
-  ThreadPool<int> pool(4);
+    /*ThreadPool<int> pool(4);
   pool.schedule(1, [](){std::cout<<"foo\n"; sleep(3);});
   pool.schedule(1, [](){std::cout<<"baz\n"; sleep(1);});
   pool.schedule(2, [](){std::cout<<"bar\n"; sleep(1);});
@@ -107,13 +107,12 @@ int main() {
   std::cout<<"joining threads\n";
   pool.join();
   return 0;
-    // TODO:
-    // Parse the rass.conf file
+  */
     // Listen to the port and handle each connection
     int server_socket = -1;
     try {
         Config config = Config::fromFile("grass.conf");
-        auto command = CommandFactory::create("hello", {});
+        auto command = CommandFactory::create("hello", {"a"});
         command->executeServer(nullptr);
         connectAndListen(config.port, server_socket);
     } catch (NetworkingException const& e) {

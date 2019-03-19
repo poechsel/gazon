@@ -31,14 +31,8 @@ std::tuple<std::string, uint16_t> parseArgs(int argc, char **argv) {
 
 void cli() {
     Cli cli;
-    cli.hello();
     while (true) {
-        std::cout<<">> ";
-        std::string line;
-        std::getline(std::cin, line);
-
-        if (line == "exit")
-            break;
+        cli.readInput();
     }
 }
 
