@@ -3,14 +3,17 @@
 #include <iostream>
 #include <string>
 #include <arpa/inet.h>
-#include <unordered_map>
+#include <map>
 #include <common/common.h>
 #include <common/config.h>
 #include <common/command.h>
 #include <common/threadpool.h>
 
+#include <errno.h>
+#include <string.h>
+
 struct Peer {
-    
+    int foo;
 };
 
 void connectAndListen(uint16_t port, int server_socket) {
@@ -37,7 +40,7 @@ void connectAndListen(uint16_t port, int server_socket) {
         throw NetworkingException("Couldn't listen on the socket");
     }
 
-    std::unordered_map<int, Peer> peers;
+    std::map<int, Peer*> peers;
 
     fd_set sockets_set;
     FD_ZERO(&sockets_set);
@@ -52,6 +55,7 @@ void connectAndListen(uint16_t port, int server_socket) {
         }
 
         if (select(max_socket + 1, &read_fd, NULL, NULL, NULL) == -1) {
+            std::cout<<strerror(errno)<<"\n"<<std::flush;
             throw NetworkingException("Select error");
         }
 
@@ -68,26 +72,41 @@ void connectAndListen(uint16_t port, int server_socket) {
                          <<" on port " <<ntohs(incoming_address.sin_port)<<std::endl;
                 FD_SET(new_socket, &sockets_set);
                 max_socket = std::max(max_socket, new_socket);
-                peers[new_socket] = Peer();
+                std::cout<<"new socket: "<<new_socket<<"\n"<<std::flush<<"\n";
+                peers[new_socket] = new Peer();
                 std::string message = "pong";
                 send(new_socket, message.c_str(), message.size(), 0);
             }
         }
 
-        for (auto& peer : peers) {
+        std::vector<int> closed_sockets;
+        for (auto const& peer : peers) {
             int socket = peer.first;
             if (FD_ISSET(socket, &read_fd)) {
                 char buffer[1024];
                 int l = recv(socket, buffer, 1024, 0);
                 if (l == 0) {
-                    FD_CLR(socket, &read_fd);
-                    close(socket);
-                    peers.erase(socket);
+                    closed_sockets.push_back(socket);
+                } else if (l < 0) {
+                    std::cout<<strerror(errno)<<"\n"<<std::flush;
+                    closed_sockets.push_back(socket);
                 } else {
                     buffer[l] = 0;
-                    std::cout<<">> "<<l<<" : "<<buffer<<"\n";
+                    // TODO: execute the following in a thread
+                    try {
+                        evaluateCommandFromLine(nullptr, std::string(buffer), true);
+                    } catch (const std::exception& e) {
+                        // TODO send back the error
+                        std::cout<<e.what()<<"\n";
+                    }
                 }
             }
+        }
+        for (auto socket : closed_sockets) {
+            FD_CLR(socket, &read_fd);
+            delete peers[socket];
+            peers.erase(socket);
+            close(socket);
         }
     }
     close(server_socket);
@@ -103,7 +122,7 @@ int main() {
   pool.schedule(5, [](){std::cout<<"bar\n"; sleep(1);});
   pool.schedule(6, [](){std::cout<<"bar\n"; sleep(1);});
   pool.schedule(7, [](){std::cout<<"bar\n"; sleep(1);});
-  pool.schedule(8, [](){std::cout<<"bar\n"; sleep(1);});
+  tool.schedule(8, [](){std::cout<<"bar\n"; sleep(1);});
   sleep(5);
   std::cout<<"joining threads\n";
   pool.join();
@@ -113,9 +132,11 @@ int main() {
     int server_socket = -1;
     try {
         Config config = Config::fromFile("grass.conf");
-        auto command = CommandFactory::create("hello", {"a"});
-        command->executeServer(nullptr);
+        auto command = CommandFactory::create("hello");
+        command->executeServer(nullptr, {"a"});
+        delete(command);
         connectAndListen(config.port, server_socket);
+        CommandFactory::destroy();
     } catch (NetworkingException const& e) {
         std::cout<<"[Networking] "<<e.what()<<std::endl;
     } catch (ConfigException const& e) {

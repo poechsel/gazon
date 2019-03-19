@@ -32,7 +32,10 @@ std::tuple<std::string, uint16_t> parseArgs(int argc, char **argv) {
 
 void execCli(Cli *cli, int server_socket) {
     while (true) {
-        cli->readInput();
+        std::string command = cli->readInput();
+
+        //TODO: Fix the send pattern
+        send(server_socket, command.c_str(), command.size(), 0);
     }
 }
 
@@ -48,13 +51,18 @@ void receiveCommunications(Cli *cli, int server_socket) {
             throw NetworkingException("Select error");
         }
 
-
         if (FD_ISSET(server_socket, &read_fd)) {
             char buffer[1024];
             // TODO fix this
             int l = recv(server_socket, buffer, 1024, 0);
             buffer[l] = 0;
-            cli->showError(std::string(buffer));
+            if (l == 0) {
+                // server got a problem
+                cli->showError("The server stopped working");
+                break;
+            } else {
+                cli->showError(std::string(buffer));
+            }
         }
     }
 }

@@ -2,19 +2,18 @@
 
 class HelloCommand : public Command {
 public:
-    HelloCommand(const CommandArgs &args) {
-        m_name = args[0];
+    virtual void executeServer(Context *context, const CommandArgs &args) {
+        std::cout<<"Hello on the server ["<<args[0]<<"]\n";
     }
 
-    virtual void executeServer(Context *context) {
-        std::cout<<"Hello on the server ["<<m_name<<"]\n";
-    }
-
-    virtual void executeClient(Context *context) {
+    virtual void executeClient(Context *context, const CommandArgs &args) {
         std::cout<<"Hello on the client\n";
     }
+
+    virtual Specification getSpecification() const {
+        return {ARG_STR};
+    }
 private:
-    std::string m_name;
 };
 
 REGISTER_COMMAND(HelloCommand, "hello");
