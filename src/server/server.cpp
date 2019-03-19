@@ -69,8 +69,9 @@ void connectAndListen(uint16_t port, int server_socket) {
                 FD_SET(new_socket, &sockets_set);
                 max_socket = std::max(max_socket, new_socket);
                 peers[new_socket] = Peer();
+                std::string message = "pong";
+                send(new_socket, message.c_str(), message.size(), 0);
             }
-
         }
 
         for (auto& peer : peers) {
@@ -120,7 +121,7 @@ int main() {
     } catch (ConfigException const& e) {
         std::cout<<"[Config]"<<e.what()<<std::endl;
     }
-    
+
     if (server_socket >= 0)
         close(server_socket);
 }

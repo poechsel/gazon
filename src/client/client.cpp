@@ -8,6 +8,7 @@
 #include <exception>
 #include <common/common.h>
 #include <client/cli.h>
+#include <common/threadpool.h>
 
 std::tuple<std::string, uint16_t> parseArgs(int argc, char **argv) {
     if (argc < 3) {
@@ -29,10 +30,32 @@ std::tuple<std::string, uint16_t> parseArgs(int argc, char **argv) {
     }
 }
 
-void cli() {
-    Cli cli;
+void execCli(Cli *cli, int server_socket) {
     while (true) {
-        cli.readInput();
+        cli->readInput();
+    }
+}
+
+void receiveCommunications(Cli *cli, int server_socket) {
+    fd_set sockets_set;
+    FD_ZERO(&sockets_set);
+    FD_SET(server_socket, &sockets_set);
+    while (true) {
+        fd_set read_fd = sockets_set;
+        int max_socket = server_socket;
+
+        if (select(max_socket + 1, &read_fd, NULL, NULL, NULL) == -1) {
+            throw NetworkingException("Select error");
+        }
+
+
+        if (FD_ISSET(server_socket, &read_fd)) {
+            char buffer[1024];
+            // TODO fix this
+            int l = recv(server_socket, buffer, 1024, 0);
+            buffer[l] = 0;
+            cli->showError(std::string(buffer));
+        }
     }
 }
 
@@ -40,6 +63,7 @@ int main(int argc, char **argv) {
     uint16_t server_port;
     std::string server_ip;
 
+    ThreadPool<int> pool(2);
     int server_socket = -1;
     try {
         std::tie(server_ip, server_port) = parseArgs(argc, argv);
@@ -64,7 +88,13 @@ int main(int argc, char **argv) {
         std::string message = "hello world";
         send(server_socket, message.c_str(), message.size(), 0);
 
-        cli();
+        Cli cli;
+        pool.schedule(1, [&](){execCli(&cli, server_socket);});
+        pool.schedule(2, [&](){receiveCommunications(&cli, server_socket);});
+        // just to make sure that the cli started
+        sleep(.5);
+        // finally wait for the threads to end
+        pool.join();
     } catch (NetworkingException const &e) {
         std::cout<<"[Networking] "<<e.what()<<std::endl;
     } catch (std::exception const &e) {
