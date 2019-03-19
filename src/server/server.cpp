@@ -1,13 +1,13 @@
-#include <grass.h>
+#include <common/grass.h>
 #include <ctype.h>
 #include <iostream>
 #include <string>
 #include <arpa/inet.h>
 #include <unordered_map>
-#include <common.h>
-#include <config.h>
-#include <command.h>
-#include <threadpool.h>
+#include <common/common.h>
+#include <common/config.h>
+#include <common/command.h>
+#include <common/threadpool.h>
 
 struct Peer {
     

@@ -1,4 +1,4 @@
-#include <command.h>
+#include <common/command.h>
 
 class HelloCommand : public Command {
 public:

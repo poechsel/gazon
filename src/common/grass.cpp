@@ -1,4 +1,4 @@
-#include <grass.h>
+#include <common/grass.h>
 #include <stdio.h>
 
 void hijack_flow(){

@@ -1,4 +1,4 @@
-#include <command.h>
+#include <common/command.h>
 
 
 std::unordered_map<std::string, CommandFactory::Constructor> *CommandFactory::m_constructors = nullptr;

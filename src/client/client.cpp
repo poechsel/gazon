@@ -1,4 +1,4 @@
-#include <grass.h>
+#include <common/grass.h>
 #include <netinet/in.h>
 #include <ctype.h>
 #include <iostream>
@@ -6,7 +6,8 @@
 #include <tuple>
 #include <arpa/inet.h>
 #include <exception>
-#include <common.h>
+#include <common/common.h>
+#include <client/cli.h>
 
 std::tuple<std::string, uint16_t> parseArgs(int argc, char **argv) {
     if (argc < 3) {
@@ -29,6 +30,8 @@ std::tuple<std::string, uint16_t> parseArgs(int argc, char **argv) {
 }
 
 void cli() {
+    Cli cli;
+    cli.hello();
     while (true) {
         std::cout<<">> ";
         std::string line;

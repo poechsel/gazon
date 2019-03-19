@@ -4,16 +4,16 @@ SRCDIR := src
 BUILDDIR := bin
 
 SRCEXT := cpp
-SOURCESSERVER := $(shell find  $(SRCDIR) -not -path src/client/* -type f -name '*.$(SRCEXT)')
+SOURCESSERVER := $(shell find  $(SRCDIR) -not -path "src/client/*" -type f -name '*.$(SRCEXT)')
 OBJECTSSERVER := $(patsubst $(SRCDIR)/%,$(BUILDDIR)/obj/%,$(SOURCESSERVER:.$(SRCEXT)=.o))
-SOURCESCLIENT := $(shell find  $(SRCDIR) -not -path src/server/* -type f -name '*.$(SRCEXT)')
+SOURCESCLIENT := $(shell find  $(SRCDIR) -not -path "src/server/*" -type f -name '*.$(SRCEXT)')
 OBJECTSCLIENT := $(patsubst $(SRCDIR)/%,$(BUILDDIR)/obj/%,$(SOURCESCLIENT:.$(SRCEXT)=.o))
 DEPSSERVER := $(OBJECTSSERVER:%.o=%.d)
 DIRSSERVER := $(dir $(OBJECTSSERVER))
 DEPSCLIENT := $(OBJECTSCLIENT:%.o=%.d)
 DIRSCLIENT := $(dir $(OBJECTSCLIENT))
 LIB := -pthread -L lib -m32
-INC := -I include/common
+INC := -I include/
 
 all: $(BUILDDIR)/client $(BUILDDIR)/server
 	@echo $(OBJECTSSERVER)
