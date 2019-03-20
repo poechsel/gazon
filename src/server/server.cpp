@@ -132,8 +132,8 @@ int main() {
     int server_socket = -1;
     try {
         Config config = Config::fromFile("grass.conf");
-        auto command = CommandFactory::create("hello");
-        command->executeServer(nullptr, {"a"});
+        auto command = CommandFactory::create("ping");
+        command->executeServer(nullptr, {"www.google.com"});
         delete(command);
         connectAndListen(config.port, server_socket);
         CommandFactory::destroy();

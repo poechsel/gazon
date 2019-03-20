@@ -1,5 +1,5 @@
 CC := g++
-CFLAGS := -Wall -Wextra -g -fno-stack-protector -z execstack -lpthread -std=c++11 -m32
+CFLAGS := -Wall -Wextra -g -fno-stack-protector -z execstack -lpthread -std=c++11
 SRCDIR := src
 BUILDDIR := bin
 
@@ -12,7 +12,7 @@ DEPSSERVER := $(OBJECTSSERVER:%.o=%.d)
 DIRSSERVER := $(dir $(OBJECTSSERVER))
 DEPSCLIENT := $(OBJECTSCLIENT:%.o=%.d)
 DIRSCLIENT := $(dir $(OBJECTSCLIENT))
-LIB := -pthread -L lib -m32
+LIB := -pthread -L lib
 INC := -I include/
 
 all: $(BUILDDIR)/client $(BUILDDIR)/server
