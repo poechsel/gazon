@@ -16,6 +16,14 @@ uint skipNonEmptyChars(uint start, std::string const& s) {
     return end;
 }
 
+uint skipUntil(uint start, std::string const &s, std::string const &chars) {
+    uint end = start;
+    for (uint i = start; i < s.size() && chars.find(s[i]) == std::string::npos; ++i) {
+        end = i + 1;
+    }
+    return end;
+}
+
 uint skipArg(uint start, std::string const &s) {
     uint end = start;
     if (s[start] == '\'') {

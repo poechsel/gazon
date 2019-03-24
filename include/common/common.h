@@ -16,8 +16,13 @@ public:
 
 typedef unsigned int uint;
 
+/* Return the index of the first non empty char in `s` after `start` */
 uint skipEmptyChars(uint start, std::string const& s);
 
+/* Return the index of the first empty char in `s` after `start` */
 uint skipNonEmptyChars(uint start, std::string const& s);
+
+/* Return the index of the first char in `prohibited` */
+uint skipUntil(uint start, std::string const &s, std::string const &chars);
 
 uint skipArg(uint start, std::string const& s);

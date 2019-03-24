@@ -12,6 +12,8 @@
 #include <errno.h>
 #include <string.h>
 
+#include <common/regex.h>
+
 struct Peer {
     int foo;
 };
@@ -113,6 +115,13 @@ void connectAndListen(uint16_t port, int server_socket) {
 }
 
 int main() {
+    //Regex("ab(c+d|e*f|gh)?|poi?j");
+    //Regex("a{ 0, 4 }{ 1 }{ ,  3  }{ 5 , }");
+    //Regex("ab?(abc|def(A{4, 9}|x)?){ 4 }");
+    Regex("ab{1,2}");
+    Regex("ab{0,2}");
+    Regex("ab{2,}");
+    return 0;
     /*ThreadPool<int> pool(4);
   pool.schedule(1, [](){std::cout<<"foo\n"; sleep(3);});
   pool.schedule(1, [](){std::cout<<"baz\n"; sleep(1);});
