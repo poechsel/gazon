@@ -115,12 +115,18 @@ void connectAndListen(uint16_t port, int server_socket) {
 }
 
 int main() {
-    //Regex("ab(c+d|e*f|gh)?|poi?j");
-    //Regex("a{ 0, 4 }{ 1 }{ ,  3  }{ 5 , }");
-    //Regex("ab?(abc|def(A{4, 9}|x)?){ 4 }");
+    /*Regex("ab(c+d|e*f|gh)?|poi?j");
+    Regex("a{ 0, 4 }{ 1 }{ ,  3  }{ 5 , }");
+    Regex("ab?(abc|def(A{4, 9}|x)?){ 4 }");
     Regex("ab{1,2}");
     Regex("ab{0,2}");
     Regex("ab{2,}");
+    */
+
+    auto re = Regex("(a{2,3}|b){,5}");
+    std::cout<<re.match("aaa")<<"\n";
+    std::cout<<re.match("abbaaa")<<"\n";
+    std::cout<<re.match("abbab")<<"\n";
     return 0;
     /*ThreadPool<int> pool(4);
   pool.schedule(1, [](){std::cout<<"foo\n"; sleep(3);});
