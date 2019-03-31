@@ -13,6 +13,7 @@
 #include <string.h>
 
 #include <common/regex.h>
+#include <common/filesystem.h>
 
 struct Peer {
     int foo;
@@ -122,6 +123,15 @@ int main() {
     Regex("ab{0,2}");
     Regex("ab{2,}");
     */
+    //Path test("/~/abc/../foo/./../");
+    Filesystem fs("/home/pierre/");
+    fs.scanAll();
+    std::cout<<"\n\n-------\n";
+    //fs.debug(&Filesystem::root);
+    std::cout<<"\n-------\n\n";
+    Filesystem::ls();
+    return 0;
+    
 
     auto re = Regex("(a{2,3}|b){,5}");
     std::cout<<re.match("aaa")<<"\n";
