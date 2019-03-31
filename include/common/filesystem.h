@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <sys/stat.h>
 #include <unordered_map>
+#include <vector>
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -14,56 +15,8 @@
 #include <grp.h>
 #include <time.h>
 #include <sys/time.h>
-
-char ftypelet (mode_t bits)
-{
-    if (S_ISREG (bits))
-        return '-';
-    if (S_ISDIR (bits))
-        return 'd';
-
-    return '?';
-}
-
-void
-strmode (mode_t mode, char *str)
-{
-    str[0] = ftypelet (mode);
-    str[1] = mode & S_IRUSR ? 'r' : '-';
-    str[2] = mode & S_IWUSR ? 'w' : '-';
-    str[3] = (mode & S_ISUID
-              ? (mode & S_IXUSR ? 's' : 'S')
-              : (mode & S_IXUSR ? 'x' : '-'));
-    str[4] = mode & S_IRGRP ? 'r' : '-';
-    str[5] = mode & S_IWGRP ? 'w' : '-';
-    str[6] = (mode & S_ISGID
-              ? (mode & S_IXGRP ? 's' : 'S')
-              : (mode & S_IXGRP ? 'x' : '-'));
-    str[7] = mode & S_IROTH ? 'r' : '-';
-    str[8] = mode & S_IWOTH ? 'w' : '-';
-    str[9] = (mode & S_ISVTX
-              ? (mode & S_IXOTH ? 't' : 'T')
-              : (mode & S_IXOTH ? 'x' : '-'));
-    str[10] = ' ';
-    str[11] = '\0';
-}
-
-std::vector<std::string> splitString(const std::string &s, char sep) {
-    std::vector<std::string> out;
-    std::string c = "";
-    for (const char x : s) {
-        if (x == sep) {
-            if (c != "")
-                out.push_back(c);
-            c = "";
-        } else {
-            c += x;
-        }
-    }
-    if (c != "")
-        out.push_back(c);
-    return out;
-}
+#include <cstring>
+#include <iostream>
 
 class Path {
 public:
@@ -80,7 +33,9 @@ public:
         return m_parts.size();
     }
 
-    Path(std::string const &path_str) {
+    Path(std::string const &path_str):
+        m_string(path_str)
+    {
         if (path_str[0] == '/') {
             m_is_absolute = true;
         } else {
@@ -111,9 +66,14 @@ public:
         return m_is_absolute;
     }
 
+    std::string string() const {
+        return m_string;
+    }
+
 private:
     std::vector<std::string> m_parts;
     bool m_is_absolute;
+    std::string m_string;
 };
 
 
@@ -148,42 +108,22 @@ public:
     struct stat *status;
 };
 
-int timespec_cmp (struct timespec a, struct timespec b)
-{
-    if (a.tv_sec < b.tv_sec)
-        return -1;
-    if (a.tv_sec > b.tv_sec)
-        return 1;
-
-    return a.tv_nsec - b.tv_nsec;
-}
-
-void gettime (struct timespec *ts)
-{
-    struct timeval tv;
-    gettimeofday (&tv, NULL);
-    ts->tv_sec = tv.tv_sec;
-    ts->tv_nsec = tv.tv_usec * 1000;
-}
-
 class Filesystem {
 public:
-    Filesystem(std::string root):
-        m_root(root)
-    {
-    }
-
-
-    /* Scan all folders with parent root/ to rebuild our
-       virtual filesystem on restart */
-    void scanAll() {
-        ftw(m_root.c_str(), callbackftw, 8);
+    /* Scan all folders with parent path and add them to our local database */
+    static void scan(Path path) {
+        if (!path.isAbsolute()) {
+            // TODO: send error
+            std::cout<<"The path should be absolute\n";
+            exit(0);
+        }
+        ftw(path.string().c_str(), callbackftw, 8);
     }
     static FilesystemEntry root;
     static std::unordered_map<uid_t, std::string> users;
     static std::unordered_map<uid_t, std::string> groups;
 
-    void debug(FilesystemEntry *entry, int level=0) {
+    static void debug(FilesystemEntry *entry, int level=0) {
         std::string indent = "";
         for (int i = 0; i < level; ++i)
             indent+="  ";
@@ -234,7 +174,7 @@ public:
         }
         return Filesystem::users[uid];
     }
-    /* TODO: add a cache*/
+
     static std::string getGroup(uid_t uid) {
         if (Filesystem::groups.find(uid) == Filesystem::groups.end()) {
             auto entry = getgrgid (uid);
@@ -245,6 +185,7 @@ public:
     }
 
     static FilesystemEntry* getEntryNode(Path path) {
+        // TODO: send error if path doesn't exists
         FilesystemEntry *entry = &Filesystem::root;
         for (auto el : path) {
             entry = entry->children[el];
@@ -252,181 +193,5 @@ public:
         return entry;
     }
 
-    static bool isHiddenFile(std::string name) {
-        return name.size() > 0 ? name[0] == '.' : false;
-    }
-
-    static bool needsQuoting(std::string name) {
-        for (auto c : name) {
-            if (c <= 0x20 || c >= 0x7f)
-                return true;
-        }
-        return false;
-    }
-
-
-
-    static void ls(Path path) {
-        FilesystemEntry *entry =
-            Filesystem::root.children["home"]
-            ->children["pierre"];
-        entry = Filesystem::getEntryNode(path);
-        struct lsdata {
-            std::string mode;
-            std::string date;
-            std::string group;
-            std::string user;
-            std::string name;
-            std::string nlink;
-            std::string size;
-        };
-        std::vector<lsdata> files;
-        int mode_length = 0;
-        int date_length = 0;
-        int group_length = 0;
-        int user_length = 0;
-        int name_length = 0;
-        int nlink_length = 0;
-        int size_length = 0;
-
-        int nblocks = 0;
-
-        bool quotingExists = false;
-
-        for (auto element : entry->children) {
-            if (!isHiddenFile(element.first) && element.second->status) {
-                struct stat* status = element.second->status;
-                nblocks += status->st_blocks / 2;
-
-                struct timespec when_timespec;
-                when_timespec.tv_sec = status->st_mtime;
-                when_timespec.tv_nsec = 0;
-                struct tm *when_local = localtime(&status->st_mtime);
-                struct timespec current_time;
-                gettime(&current_time);
-
-                struct timespec six_months_ago;
-
-                six_months_ago.tv_sec = current_time.tv_sec - 31556952 / 2;
-                six_months_ago.tv_nsec = current_time.tv_nsec;
-
-                bool recent = (timespec_cmp (six_months_ago, when_timespec) < 0
-                               && (timespec_cmp (when_timespec, current_time) < 0));
-                char buf[100];
-                strftime(buf, 100, m_date_fmt[12 * recent + when_local->tm_mon].c_str(), when_local);
-
-                char str[11];
-                strmode(status->st_mode, str);
-
-                quotingExists |= needsQuoting(element.first);
-
-                lsdata filedata = {
-                                   std::string(str),
-                                   std::string(buf),
-                                   getUser(status->st_uid),
-                                   getGroup(status->st_uid),
-                                   element.first,
-                                   std::to_string(status->st_nlink),
-                                   std::to_string(status->st_size)
-                };
-
-                mode_length = std::max(mode_length, (int)filedata.mode.size());
-                date_length = std::max(date_length, (int)filedata.date.size());
-                group_length = std::max(group_length, (int)filedata.group.size());
-                user_length = std::max(user_length, (int)filedata.user.size());
-                name_length = std::max(name_length, (int)filedata.name.size());
-                nlink_length = std::max(nlink_length, (int)filedata.nlink.size());
-                size_length = std::max(size_length, (int)filedata.size.size());
-                files.push_back(filedata);
-            }
-        }
-
-        std::sort(files.begin(), files.end(),
-                  [](const lsdata &a, const lsdata &b) {
-                      return strcoll(a.name.c_str(), b.name.c_str()) < 0;
-                  });
-
-        char format_str_quote_with[128];
-        char format_str_quote_without[128];
-        char format_str_no_quote[128];
-        snprintf(format_str_quote_with, 128,
-                 "%%s%%%ds %%-%ds %%-%ds %%%ds %%s '%%s'\n",
-                 nlink_length,
-                 user_length,
-                 group_length,
-                 size_length
-                 );
-        snprintf(format_str_quote_without, 128,
-                 "%%s%%%ds %%-%ds %%-%ds %%%ds %%s  %%s\n",
-                 nlink_length,
-                 user_length,
-                 group_length,
-                 size_length
-                 );
-        snprintf(format_str_no_quote, 128,
-                 "%%s%%%ds %%-%ds %%-%ds %%%ds %%s %%s\n",
-                 nlink_length,
-                 user_length,
-                 group_length,
-                 size_length
-                 );
-        char c_str[1024];
-        printf("total %d\n", nblocks);
-        for (auto lsdata : files) {
-            std::string name = lsdata.name;
-            char *format_str = format_str_no_quote;
-            if (quotingExists) {
-                if (Filesystem::needsQuoting(name)) {
-                    format_str = format_str_quote_with;
-                } else {
-                    format_str = format_str_quote_without;
-                }
-            } 
-            snprintf(c_str, 1024,
-                     format_str,
-                     lsdata.mode.c_str(),
-                     lsdata.nlink.c_str(),
-                     lsdata.user.c_str(),
-                     lsdata.group.c_str(),
-                     lsdata.size.c_str(),
-                     lsdata.date.c_str(),
-                     lsdata.name.c_str()
-                     );
-            printf(c_str);
-        }
-    }
 private:
-    static std::array<std::string, 24> m_date_fmt;
-    std::string m_root;
-};
-
-FilesystemEntry Filesystem::root;
-std::unordered_map<uid_t, std::string> Filesystem::users;
-std::unordered_map<uid_t, std::string> Filesystem::groups;
-
-std::array<std::string, 12 * 2> Filesystem::m_date_fmt = {
-                                                          "Jan %e  %Y",
-                                                          "Feb %e  %Y",
-                                                          "Mar %e  %Y",
-                                                          "Apr %e  %Y",
-                                                          "May %e  %Y",
-                                                          "Jun %e  %Y",
-                                                          "Jul %e  %Y",
-                                                          "Aug %e  %Y",
-                                                          "Sep %e  %Y",
-                                                          "Oct %e  %Y",
-                                                          "Nov %e  %Y",
-                                                          "Dec %e  %Y",
-                                                          "Jan %e %H:%M",
-                                                          "Feb %e %H:%M",
-                                                          "Mar %e %H:%M",
-                                                          "Apr %e %H:%M",
-                                                          "May %e %H:%M",
-                                                          "Jun %e %H:%M",
-                                                          "Jul %e %H:%M",
-                                                          "Aug %e %H:%M",
-                                                          "Sep %e %H:%M",
-                                                          "Oct %e %H:%M",
-                                                          "Nov %e %H:%M",
-                                                          "Dec %e %H:%M"
 };

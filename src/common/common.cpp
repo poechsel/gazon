@@ -43,3 +43,21 @@ uint skipArg(uint start, std::string const &s) {
     }
     return end;
 }
+
+
+std::vector<std::string> splitString(const std::string &s, char sep) {
+    std::vector<std::string> out;
+    std::string c = "";
+    for (const char x : s) {
+        if (x == sep) {
+            if (c != "")
+                out.push_back(c);
+            c = "";
+        } else {
+            c += x;
+        }
+    }
+    if (c != "")
+        out.push_back(c);
+    return out;
+}

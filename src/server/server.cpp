@@ -14,6 +14,7 @@
 
 #include <common/regex.h>
 #include <common/filesystem.h>
+#include <common/ls.h>
 
 struct Peer {
     int foo;
@@ -124,10 +125,11 @@ int main() {
     Regex("ab{2,}");
     */
     //Path test("/~/abc/../foo/./../");
-    Filesystem fs("/home/pierre/gazon/.gitkeepn");
-    fs.scanAll();
+    Path path("/home/pierre/gazon");
+    Filesystem::scan(path);
     //fs.debug(&Filesystem::root);
-    Filesystem::ls(Path("/home/pierre/gazon"));
+    Ls ls;
+    ls.run(path);
     return 0;
     
 

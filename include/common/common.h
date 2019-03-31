@@ -3,6 +3,10 @@
 #include <stdexcept>
 #include <exception>
 #include <cctype>
+#include <vector>
+#include <unordered_map>
+#include <algorithm>
+#include <string>
 
 struct NetworkingException : public std::runtime_error {
 public:
@@ -26,3 +30,5 @@ uint skipNonEmptyChars(uint start, std::string const& s);
 uint skipUntil(uint start, std::string const &s, std::string const &chars);
 
 uint skipArg(uint start, std::string const& s);
+
+std::vector<std::string> splitString(const std::string &s, char sep);
