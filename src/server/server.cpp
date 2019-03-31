@@ -124,12 +124,10 @@ int main() {
     Regex("ab{2,}");
     */
     //Path test("/~/abc/../foo/./../");
-    Filesystem fs("/home/pierre/");
+    Filesystem fs("/home/pierre/gazon/.gitkeepn");
     fs.scanAll();
-    std::cout<<"\n\n-------\n";
     //fs.debug(&Filesystem::root);
-    std::cout<<"\n-------\n\n";
-    Filesystem::ls();
+    Filesystem::ls(Path("/home/pierre/gazon"));
     return 0;
     
 

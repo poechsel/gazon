@@ -244,13 +244,33 @@ public:
         return Filesystem::groups[uid];
     }
 
+    static FilesystemEntry* getEntryNode(Path path) {
+        FilesystemEntry *entry = &Filesystem::root;
+        for (auto el : path) {
+            entry = entry->children[el];
+        }
+        return entry;
+    }
+
     static bool isHiddenFile(std::string name) {
         return name.size() > 0 ? name[0] == '.' : false;
     }
 
+    static bool needsQuoting(std::string name) {
+        for (auto c : name) {
+            if (c <= 0x20 || c >= 0x7f)
+                return true;
+        }
+        return false;
+    }
 
 
-    static void ls() {
+
+    static void ls(Path path) {
+        FilesystemEntry *entry =
+            Filesystem::root.children["home"]
+            ->children["pierre"];
+        entry = Filesystem::getEntryNode(path);
         struct lsdata {
             std::string mode;
             std::string date;
@@ -260,16 +280,23 @@ public:
             std::string nlink;
             std::string size;
         };
-        std::cout<<"ls\n";
-        FilesystemEntry *entry =
-            Filesystem::root.children["home"]
-            ->children["pierre"]
-            /*->children["epfl"]
-            ->children["ctf"]*/;
+        std::vector<lsdata> files;
+        int mode_length = 0;
+        int date_length = 0;
+        int group_length = 0;
+        int user_length = 0;
+        int name_length = 0;
+        int nlink_length = 0;
+        int size_length = 0;
+
+        int nblocks = 0;
+
+        bool quotingExists = false;
+
         for (auto element : entry->children) {
             if (!isHiddenFile(element.first) && element.second->status) {
                 struct stat* status = element.second->status;
-
+                nblocks += status->st_blocks / 2;
 
                 struct timespec when_timespec;
                 when_timespec.tv_sec = status->st_mtime;
@@ -279,34 +306,96 @@ public:
                 gettime(&current_time);
 
                 struct timespec six_months_ago;
-                bool recent;
 
-                /* Consider a time to be recent if it is within the past six months.
-                   A Gregorian year has 365.2425 * 24 * 60 * 60 == 31556952 seconds
-                   on the average.  Write this value as an integer constant to
-                   avoid floating point hassles.  */
                 six_months_ago.tv_sec = current_time.tv_sec - 31556952 / 2;
                 six_months_ago.tv_nsec = current_time.tv_nsec;
 
-                recent = (timespec_cmp (six_months_ago, when_timespec) < 0
-                          && (timespec_cmp (when_timespec, current_time) < 0));
-                char buf[1000];
-                strftime(buf, 1000, m_date_fmt[12 * recent + when_local->tm_mon].c_str(), when_local);
+                bool recent = (timespec_cmp (six_months_ago, when_timespec) < 0
+                               && (timespec_cmp (when_timespec, current_time) < 0));
+                char buf[100];
+                strftime(buf, 100, m_date_fmt[12 * recent + when_local->tm_mon].c_str(), when_local);
 
                 char str[11];
                 strmode(status->st_mode, str);
-                std::cout<<str<<" ";
-                std::cout<<buf<<" ";
-                std::cout<<status->st_nlink<<" ";
-                std::cout<<getUser(status->st_uid)<<" ";
-                std::cout<<getGroup(status->st_uid)<<" ";
-                std::cout<<status->st_size<<" ";
-                std::cout<<element.first<<"\n";
+
+                quotingExists |= needsQuoting(element.first);
+
+                lsdata filedata = {
+                                   std::string(str),
+                                   std::string(buf),
+                                   getUser(status->st_uid),
+                                   getGroup(status->st_uid),
+                                   element.first,
+                                   std::to_string(status->st_nlink),
+                                   std::to_string(status->st_size)
+                };
+
+                mode_length = std::max(mode_length, (int)filedata.mode.size());
+                date_length = std::max(date_length, (int)filedata.date.size());
+                group_length = std::max(group_length, (int)filedata.group.size());
+                user_length = std::max(user_length, (int)filedata.user.size());
+                name_length = std::max(name_length, (int)filedata.name.size());
+                nlink_length = std::max(nlink_length, (int)filedata.nlink.size());
+                size_length = std::max(size_length, (int)filedata.size.size());
+                files.push_back(filedata);
             }
+        }
+
+        std::sort(files.begin(), files.end(),
+                  [](const lsdata &a, const lsdata &b) {
+                      return strcoll(a.name.c_str(), b.name.c_str()) < 0;
+                  });
+
+        char format_str_quote_with[128];
+        char format_str_quote_without[128];
+        char format_str_no_quote[128];
+        snprintf(format_str_quote_with, 128,
+                 "%%s%%%ds %%-%ds %%-%ds %%%ds %%s '%%s'\n",
+                 nlink_length,
+                 user_length,
+                 group_length,
+                 size_length
+                 );
+        snprintf(format_str_quote_without, 128,
+                 "%%s%%%ds %%-%ds %%-%ds %%%ds %%s  %%s\n",
+                 nlink_length,
+                 user_length,
+                 group_length,
+                 size_length
+                 );
+        snprintf(format_str_no_quote, 128,
+                 "%%s%%%ds %%-%ds %%-%ds %%%ds %%s %%s\n",
+                 nlink_length,
+                 user_length,
+                 group_length,
+                 size_length
+                 );
+        char c_str[1024];
+        printf("total %d\n", nblocks);
+        for (auto lsdata : files) {
+            std::string name = lsdata.name;
+            char *format_str = format_str_no_quote;
+            if (quotingExists) {
+                if (Filesystem::needsQuoting(name)) {
+                    format_str = format_str_quote_with;
+                } else {
+                    format_str = format_str_quote_without;
+                }
+            } 
+            snprintf(c_str, 1024,
+                     format_str,
+                     lsdata.mode.c_str(),
+                     lsdata.nlink.c_str(),
+                     lsdata.user.c_str(),
+                     lsdata.group.c_str(),
+                     lsdata.size.c_str(),
+                     lsdata.date.c_str(),
+                     lsdata.name.c_str()
+                     );
+            printf(c_str);
         }
     }
 private:
-    static std::array<std::string, 12> m_months;
     static std::array<std::string, 24> m_date_fmt;
     std::string m_root;
 };
@@ -314,30 +403,30 @@ private:
 FilesystemEntry Filesystem::root;
 std::unordered_map<uid_t, std::string> Filesystem::users;
 std::unordered_map<uid_t, std::string> Filesystem::groups;
-std::array<std::string, 12> Filesystem::m_months = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
+
 std::array<std::string, 12 * 2> Filesystem::m_date_fmt = {
-"Jan %e  %Y",
-"Feb %e  %Y",
-"Mar %e  %Y",
-"Apr %e  %Y",
-"May %e  %Y",
-"Jun %e  %Y",
-"Jul %e  %Y",
-"Aug %e  %Y",
-"Sep %e  %Y",
-"Oct %e  %Y",
-"Nov %e  %Y",
-"Dec %e  %Y",
-"Jan %e %H:%M",
-"Feb %e %H:%M",
-"Mar %e %H:%M",
-"Apr %e %H:%M",
-"May %e %H:%M",
-"Jun %e %H:%M",
-"Jul %e %H:%M",
-"Aug %e %H:%M",
-"Sep %e %H:%M",
-"Oct %e %H:%M",
-"Nov %e %H:%M",
-"Dec %e %H:%M"
+                                                          "Jan %e  %Y",
+                                                          "Feb %e  %Y",
+                                                          "Mar %e  %Y",
+                                                          "Apr %e  %Y",
+                                                          "May %e  %Y",
+                                                          "Jun %e  %Y",
+                                                          "Jul %e  %Y",
+                                                          "Aug %e  %Y",
+                                                          "Sep %e  %Y",
+                                                          "Oct %e  %Y",
+                                                          "Nov %e  %Y",
+                                                          "Dec %e  %Y",
+                                                          "Jan %e %H:%M",
+                                                          "Feb %e %H:%M",
+                                                          "Mar %e %H:%M",
+                                                          "Apr %e %H:%M",
+                                                          "May %e %H:%M",
+                                                          "Jun %e %H:%M",
+                                                          "Jul %e %H:%M",
+                                                          "Aug %e %H:%M",
+                                                          "Sep %e %H:%M",
+                                                          "Oct %e %H:%M",
+                                                          "Nov %e %H:%M",
+                                                          "Dec %e %H:%M"
 };
