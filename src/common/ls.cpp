@@ -171,15 +171,15 @@ void Ls::run(Path path) {
     Lsmaxlength length = {0, 0, 0, 0, 0, 0, 0};
     int nblocks = 0;
     bool quotingExists = false;
-    char time_str[100];
-    char mode_str[11];
-
     /* We start by storing in an array every element
        that will be part of the final output. We also
        keep track of the width of each column */
     for (auto element : entry->children) {
         if (!isHiddenFile(element.first) && element.second->status) {
             struct stat* status = element.second->status;
+            char time_str[100];
+            char mode_str[11];
+
             nblocks += status->st_blocks / 2;
 
             timeToStr(status->st_mtime, time_str, 100);
@@ -189,10 +189,10 @@ void Ls::run(Path path) {
             quotingExists |= needsQuoting(element.first);
 
             Lsdata filedata = {
-                               std::string(time_str),
                                std::string(mode_str),
-                               Filesystem::getUser(status->st_uid),
+                               std::string(time_str),
                                Filesystem::getGroup(status->st_uid),
+                               Filesystem::getUser(status->st_uid),
                                element.first,
                                std::to_string(status->st_nlink),
                                std::to_string(status->st_size)
@@ -218,7 +218,9 @@ void Ls::run(Path path) {
     char c_str[1024];
     printf("total %d\n", nblocks);
     for (auto lsdata : files) {
-        formatstr.dump(lsdata, c_str, quotingExists);
+        // use quotingExists to be more compatible with the shell version
+        // when it's executed from a fancy shell
+        formatstr.dump(lsdata, c_str, false/*quotingExists*/);
         printf(c_str);
     }
 }

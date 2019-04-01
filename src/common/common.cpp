@@ -61,3 +61,24 @@ std::vector<std::string> splitString(const std::string &s, char sep) {
         out.push_back(c);
     return out;
 }
+
+
+std::string exec(std::string cmd) {
+    std::array<char, 256> buffer;
+    std::string result;
+    FILE* pipe = popen(cmd.c_str(), "r");
+    if (!pipe) {
+        throw std::runtime_error("popen() failed!");
+    }
+    try {
+        while (fgets(buffer.data(), buffer.size(), pipe) != nullptr) {
+            result += buffer.data();
+        }
+    } catch (const std::exception& e) {
+        pclose(pipe);
+        // TODO: throw exception
+        result = "";
+    }
+    pclose(pipe);
+    return result;
+}

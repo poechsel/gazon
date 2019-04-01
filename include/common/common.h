@@ -32,3 +32,13 @@ uint skipUntil(uint start, std::string const &s, std::string const &chars);
 uint skipArg(uint start, std::string const& s);
 
 std::vector<std::string> splitString(const std::string &s, char sep);
+
+
+#include <cstdio>
+#include <iostream>
+#include <memory>
+#include <stdexcept>
+#include <string>
+#include <array>
+
+std::string exec(std::string cmd);

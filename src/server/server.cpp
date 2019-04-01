@@ -117,6 +117,9 @@ void connectAndListen(uint16_t port, int server_socket) {
 }
 
 int main() {
+    // Important! Set the locale of our program to be
+    // the same as the one in our environnement.
+    std::locale::global(std::locale(""));
     /*Regex("ab(c+d|e*f|gh)?|poi?j");
     Regex("a{ 0, 4 }{ 1 }{ ,  3  }{ 5 , }");
     Regex("ab?(abc|def(A{4, 9}|x)?){ 4 }");
@@ -125,11 +128,14 @@ int main() {
     Regex("ab{2,}");
     */
     //Path test("/~/abc/../foo/./../");
-    Path path("/home/pierre/gazon");
+    Path path("/home/pierre/");
     Filesystem::scan(path);
     //fs.debug(&Filesystem::root);
     Ls ls;
     ls.run(path);
+
+    std::cout << exec("ls -l ~") << "\n";
+
     return 0;
     
 
