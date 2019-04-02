@@ -83,14 +83,45 @@ public:
     }
 
     bool match(std::string const s) {
+#ifdef REGEX_DEBUG
+        debug();
+        std::cout<<"trying to match against \""<< s << "\"\n";
+#endif
         m_current_step_uid++;
         std::vector<T> current_states;
         addState(current_states, m_start_state);
         for (auto c : s) {
-            current_states = step(current_states, c);
+#ifdef REGEX_DEBUG
+            for (auto x : current_states) {
+                std::cout<<x<<" ";
+            }
+            std::cout<<"\n";
+#endif
             m_current_step_uid++;
+            current_states = step(current_states, c);
         }
+#ifdef REGEX_DEBUG
+        for (auto x : current_states) {
+            std::cout<<x<<" ";
+        }
+        std::cout<<"\n";
+        std::cout<<"matching: "<<containsMatchState(current_states)<<"\n";
+#endif
         return containsMatchState(current_states);
+    }
+
+
+    bool asMatch(std::string const s) {
+        m_current_step_uid++;
+        std::vector<T> current_states;
+        addState(current_states, m_start_state);
+        for (auto c : s) {
+            m_current_step_uid++;
+            current_states = step(current_states, c);
+            if (containsMatchState(current_states))
+                return true;
+        }
+        return false;
     }
 
 private:
@@ -119,6 +150,29 @@ private:
             state(s), needs_linking(n)
         {}
     };
+
+    void debug() {
+        std::cout<<"[start at]: "<<m_start_state<<"\n";
+        std::cout<<"[final at]: "<<m_final_state<<"\n";
+        for (int i = 1; i < m_state_top_ptr; ++i) {
+            std::cout<<i<<":  ";
+            if (m_states[i].c == NodeType::Any) {
+                std::cout<<"any";
+            } else if (m_states[i].c == NodeType::Split) {
+                std::cout<<"split";
+            } else if (m_states[i].c == NodeType::Match) {
+                std::cout<<"match";
+            } else {
+                std::cout<<m_states[i].c;
+            }
+
+            std::cout<<"  left: "<<m_states[i].left;
+            if (m_states[i].right)
+            std::cout<<"  right: "<<m_states[i].right;
+            std::cout<<"\n";
+        }
+    }
+
 
     bool containsMatchState(std::vector<T> &states) {
         return std::find_if(states.begin(),
@@ -154,6 +208,8 @@ private:
         std::vector<T> out;
         for (T state_id : states) {
             State &state = m_states[state_id];
+            std::string f;
+            f += state.c;
             if (state.c == NodeType::Any || state.c == c) {
                 addState(out, state.left);
             }

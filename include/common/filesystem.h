@@ -193,5 +193,9 @@ public:
         return entry;
     }
 
+    static bool isHiddenFile(std::string name) {
+        return name.size() > 0 ? name[0] == '.' : false;
+    }
+
 private:
 };

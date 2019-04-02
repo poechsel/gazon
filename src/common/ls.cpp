@@ -50,10 +50,6 @@ void gettime (struct timespec *ts)
     ts->tv_nsec = tv.tv_usec * 1000;
 }
 
-bool isHiddenFile(std::string name) {
-    return name.size() > 0 ? name[0] == '.' : false;
-}
-
 bool needsQuoting(std::string name) {
     for (auto c : name) {
         if (c <= 0x20 || c >= 0x7f)
@@ -175,7 +171,7 @@ void Ls::run(Path path) {
        that will be part of the final output. We also
        keep track of the width of each column */
     for (auto element : entry->children) {
-        if (!isHiddenFile(element.first) && element.second->status) {
+        if (!Filesystem::isHiddenFile(element.first) && element.second->status) {
             struct stat* status = element.second->status;
             char time_str[100];
             char mode_str[11];

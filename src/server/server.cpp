@@ -15,6 +15,7 @@
 #include <common/regex.h>
 #include <common/filesystem.h>
 #include <common/ls.h>
+#include <common/grep.h>
 
 struct Peer {
     int foo;
@@ -116,6 +117,8 @@ void connectAndListen(uint16_t port, int server_socket) {
     close(server_socket);
 }
 
+#include <chrono>
+
 int main() {
     // Important! Set the locale of our program to be
     // the same as the one in our environnement.
@@ -128,9 +131,26 @@ int main() {
     Regex("ab{2,}");
     */
     //Path test("/~/abc/../foo/./../");
+
     Path path("/home/pierre/");
     Filesystem::scan(path);
-    //fs.debug(&Filesystem::root);
+    Grep grep;
+    auto start = std::chrono::steady_clock::now();
+    grep.run(path, "(a|b){4}");
+	auto end = std::chrono::steady_clock::now();
+    std::cout << "Elapsed time in nanoseconds : " 
+         << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count()
+              << " ns" << std::endl;
+
+    start = std::chrono::steady_clock::now();
+    std::cout << exec("grep -lsE \"(a|b){4}\" ~/*") << "\n";
+	end = std::chrono::steady_clock::now();
+    std::cout << "Elapsed time in nanoseconds : " 
+              << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count()
+              << " ns" << std::endl;
+
+    return 0;
+
     Ls ls;
     ls.run(path);
 

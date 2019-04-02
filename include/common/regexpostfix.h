@@ -69,6 +69,7 @@ public:
         }
         popAllConcat();
         popAllPipe();
+        debug();
     }
 
     std::string debug() {

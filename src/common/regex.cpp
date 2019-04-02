@@ -22,3 +22,7 @@ Regex::Regex(std::string pattern) {
 bool Regex::match(std::string const &s) {
     return m_nfa.match(s);
 }
+
+bool Regex::asMatch(std::string const &s) {
+    return m_nfa.asMatch(s);
+}
