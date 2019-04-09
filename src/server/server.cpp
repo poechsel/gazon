@@ -134,6 +134,9 @@ int main() {
 
     Path path("/home/pierre/gazon");
     Filesystem::scan(path);
+    Filesystem::debug(&Filesystem::root);
+    Filesystem::removePath(Path("/home/pierre/gazon/temp"));
+    Filesystem::debug(&Filesystem::root);
     Grep grep;
     auto start = std::chrono::steady_clock::now();
     grep.run(path, "(a|b){4}");
@@ -143,7 +146,7 @@ int main() {
               << " ns" << std::endl;
 
     start = std::chrono::steady_clock::now();
-    std::cout << exec("grep -lsE \"(a|b){4}\" ~/*") << "\n";
+    std::cout << exec("grep -lsE \"(a|b){4}\" *") << "\n";
 	end = std::chrono::steady_clock::now();
     std::cout << "Elapsed time in nanoseconds : " 
               << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count()
@@ -157,7 +160,6 @@ int main() {
     std::cout << exec("ls -l ~") << "\n";
 
     return 0;
-    
 
     auto re = Regex("(a{2,3}|b){,5}");
     std::cout<<re.match("aaa")<<"\n";

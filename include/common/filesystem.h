@@ -7,6 +7,7 @@
 #include <sys/stat.h>
 #include <unordered_map>
 #include <vector>
+#include <unistd.h>
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -148,23 +149,21 @@ public:
     static std::unordered_map<uid_t, std::string> users;
     static std::unordered_map<uid_t, std::string> groups;
 
-    static void debug(FilesystemEntry *entry, int level=0) {
+    static void debug(FilesystemEntry *entry, bool showHidden = false, int level=0) {
         std::string indent = "";
         for (int i = 0; i < level; ++i)
             indent+="  ";
         for (auto it : entry->children) {
-            if (it.second->isFolder) {
-                debug(it.second, level+1);
+            if (it.first[0] != '.' && !showHidden) {
+                std::cout<<indent<<it.first<<"("<<it.second->nRecChildren<<" "<<it.second->size<<")"<<"\n";
+                if (it.second->isFolder) {
+                    debug(it.second, showHidden, level+1);
+                }
             }
         }
     }
 
-    static int callbackftw(const char *name, const struct stat *status, int type) {
-        if(type == FTW_NS)
-            return 0;
-
-        std::string s = std::string(name);
-        Path path(s);
+   static int insertNode(Path &path, const struct stat *status, bool isFolder) {
         FilesystemEntry* entry = &Filesystem::root;
         size_t size_file = status->st_size;
         std::string cpath = "";
@@ -179,16 +178,25 @@ public:
         entry = entry->get(*it);
         entry->status = (struct stat*)malloc(sizeof(struct stat));
         memcpy(entry->status, status, sizeof(struct stat));
-        if(type == FTW_F) {
-            entry->isFolder = false;
-            entry->size = size_file;
-            entry->nRecChildren = 0;
-        } else if(type == FTW_D) {
+        if(isFolder) {
             entry->isFolder = true;
             entry->size = 0;
             entry->nRecChildren = 0;
+        } else {
+            entry->isFolder = false;
+            entry->size = size_file;
+            entry->nRecChildren = 0;
         }
         return 0;
+    }
+
+    static int callbackftw(const char *name, const struct stat *status, int type) {
+        if(type == FTW_NS)
+            return 0;
+
+        std::string s = std::string(name);
+        Path path(s);
+        return insertNode(path, status, type == FTW_D);
     }
 
     /* remove the metadata corresponding to a path inside the tree
@@ -206,6 +214,15 @@ public:
                 entry = entry->children[el];
             }
         }
+    }
+
+    static int removewrapper(const char *path, const struct stat *, int, struct FTW *) {
+        return remove(path);
+    }
+
+    static void removePath(Path path) {
+        removeNode(path);
+        nftw(path.string().c_str(), removewrapper, 8, FTW_DEPTH);
     }
 
     static std::string getUser(uid_t uid) {
