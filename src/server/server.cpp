@@ -132,7 +132,7 @@ int main() {
     */
     //Path test("/~/abc/../foo/./../");
 
-    Path path("/home/pierre/");
+    Path path("/home/pierre/gazon");
     Filesystem::scan(path);
     Grep grep;
     auto start = std::chrono::steady_clock::now();

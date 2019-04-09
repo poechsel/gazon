@@ -76,6 +76,15 @@ private:
     std::string m_string;
 };
 
+struct FilesystemException : public std::runtime_error {
+public:
+    FilesystemException(std::string m): std::runtime_error(m) {
+    }
+
+	const char * what () const throw () {
+    	return std::runtime_error::what();
+    }
+};
 
 class FilesystemEntry {
 public:
@@ -106,6 +115,22 @@ public:
     }
 
     struct stat *status;
+};
+
+class File {
+public:
+    File(std::string path, std::string type): m_file(nullptr) {
+        open(path, type);
+    }
+    ~File() {
+        close();
+    }
+    void open(std::string path, std::string type);
+    void close();
+    bool getLine(std::string &out);
+private:
+    FILE* m_file;
+    std::string m_opened_type;
 };
 
 class Filesystem {
@@ -166,6 +191,23 @@ public:
         return 0;
     }
 
+    /* remove the metadata corresponding to a path inside the tree
+       WARNING: do not physicall delete the file */
+    static void removeNode(Path path) {
+        FilesystemEntry* node_to_delete = getEntryNode(path);
+        FilesystemEntry *entry = &Filesystem::root;
+        for (auto el : path) {
+            entry->size -= node_to_delete->size;
+            entry->nRecChildren -= node_to_delete->nRecChildren + 1;
+            if (entry->children[el] == node_to_delete) {
+                entry->children.erase(el);
+                break;
+            } else {
+                entry = entry->children[el];
+            }
+        }
+    }
+
     static std::string getUser(uid_t uid) {
         if (Filesystem::users.find(uid) == Filesystem::users.end()) {
             struct passwd *entry = getpwuid (uid);
@@ -185,16 +227,28 @@ public:
     }
 
     static FilesystemEntry* getEntryNode(Path path) {
-        // TODO: send error if path doesn't exists
         FilesystemEntry *entry = &Filesystem::root;
         for (auto el : path) {
-            entry = entry->children[el];
+            if (entry->children.count(el) > 0) {
+                entry = entry->children[el];
+            } else {
+                throw FilesystemException(path.string() + " not found");
+            }
         }
         return entry;
     }
 
     static bool isHiddenFile(std::string name) {
         return name.size() > 0 ? name[0] == '.' : false;
+    }
+
+    FILE *read(const Path &path) {
+        getEntryNode(path); // only to throw an error if we can't access this file
+        FILE* f = fopen(path.string().c_str(), "r");
+        if (!f) {
+            throw FilesystemException(path.string() + " can't be opened");
+        }
+        return f;
     }
 
 private:

@@ -172,7 +172,7 @@ private:
         int repetitions_max = std::numeric_limits<int>::max();
         bool saw_one_coma = false;
 
-        int i_next_token = i;
+        unsigned int i_next_token = i;
 
         while (i_next_token < m_infix.size()) {
             i_next_token = skipEmptyChars(i_next_token, m_infix);
