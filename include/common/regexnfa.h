@@ -1,6 +1,7 @@
 #pragma once
 #include <algorithm>
 #include <common/regexpostfix.h>
+#include <map>
 
 template <typename T>
 class RegexNfa {
@@ -82,47 +83,49 @@ public:
             throw RegexException("[Nfa] Invalid postfix expression");
     }
 
-    bool match(std::string const s) {
-#ifdef REGEX_DEBUG
-        debug();
-        std::cout<<"trying to match against \""<< s << "\"\n";
-#endif
+    std::vector<T> getStartStates() {
         m_current_step_uid++;
         std::vector<T> current_states;
         addState(current_states, m_start_state);
-        for (auto c : s) {
-#ifdef REGEX_DEBUG
-            for (auto x : current_states) {
-                std::cout<<x<<" ";
-            }
-            std::cout<<"\n";
-#endif
-            m_current_step_uid++;
-            current_states = step(current_states, c);
-        }
-#ifdef REGEX_DEBUG
-        for (auto x : current_states) {
-            std::cout<<x<<" ";
-        }
-        std::cout<<"\n";
-        std::cout<<"matching: "<<containsMatchState(current_states)<<"\n";
-#endif
-        return containsMatchState(current_states);
+        return current_states;
     }
 
+    bool match(std::string const s) {
+        std::vector<T> current_states = getStartStates();
+        bool isMatchState = false;
+        for (auto c : s) {
+            isMatchState = false;
+            current_states = step(current_states, c, isMatchState);
+        }
+        return isMatchState;
+    }
 
     bool asMatch(std::string const s) {
-        m_current_step_uid++;
-        std::vector<T> current_states;
-        addState(current_states, m_start_state);
+        std::vector<T> current_states = getStartStates();
+        bool isMatchState;
         for (auto c : s) {
-            m_current_step_uid++;
-            current_states = step(current_states, c);
-            if (containsMatchState(current_states))
+            isMatchState = false;
+            current_states = step(current_states, c, isMatchState);
+            if (isMatchState)
                 return true;
         }
         return false;
     }
+
+    std::vector<T> step(std::vector<T> const& states, char c, bool &isMatch) {
+        m_current_step_uid++;
+        std::vector<T> out;
+        for (T state_id : states) {
+            State &state = m_states[state_id];
+            std::string f;
+            f += state.c;
+            if (state.c == NodeType::Any || state.c == c) {
+                isMatch |= addState(out, state.left);
+            }
+        }
+        return out;
+    }
+
 
 private:
     struct State {
@@ -188,34 +191,24 @@ private:
         }
     }
 
-    void addState(std::vector<T> &states, int state_id) {
+    bool addState(std::vector<T> &states, int state_id) {
         if (state_id == 0)
-            return;
+            return false;
         State &state = m_states[state_id];
         // If we have already seen this step, abort
         if (state.last_step_seen == m_current_step_uid)
-            return;
+            return state.c == NodeType::Match;
+
         state.last_step_seen = m_current_step_uid;
+        bool is_match = false;
         if (state.c == NodeType::Split) {
-            addState(states, state.left);
-            addState(states, state.right);
+            is_match |= addState(states, state.left);
+            is_match |= addState(states, state.right);
         }
         states.push_back(state_id);
+        return is_match || state.c == NodeType::Match;
     }
 
-
-    std::vector<T> step(std::vector<T> const& states, char c) {
-        std::vector<T> out;
-        for (T state_id : states) {
-            State &state = m_states[state_id];
-            std::string f;
-            f += state.c;
-            if (state.c == NodeType::Any || state.c == c) {
-                addState(out, state.left);
-            }
-        }
-        return out;
-    }
 
 
     Fragment popFragment(std::stack<Fragment> &s) {

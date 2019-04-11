@@ -1,6 +1,7 @@
 #pragma once
 
 #include <common/regexnfa.h>
+#include <common/regexdfa.h>
 
 
 
@@ -12,4 +13,5 @@ public:
 private:
     std::string m_pattern;
     RegexNfa<uint16_t> m_nfa;
+    RegexDfa<uint16_t> m_dfa;
 };

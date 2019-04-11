@@ -2,7 +2,7 @@
 
 void Grep::run(Path path, std::string pattern) {
     auto entry = Filesystem::getEntryNode(path);
-    Regex regex(".*" + pattern);
+    Regex regex(".*" + pattern + ".*");
 
     std::vector<std::string> matched_files;
     for (auto efile : entry->children) {
@@ -13,7 +13,7 @@ void Grep::run(Path path, std::string pattern) {
             bool status = true;
             do {
                 status = file.getLine(line);
-                if (regex.asMatch(line)) {
+                if (regex.match(line)) {
                     matched_files.push_back(efile.first);
                     break;
                 }

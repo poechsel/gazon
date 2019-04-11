@@ -134,10 +134,11 @@ int main() {
 
     Path path("/home/pierre/gazon");
     Filesystem::scan(path);
+    /*
     Filesystem::mkdir_(Path("/home/pierre/gazon/temp"));
     auto file = Filesystem::createFile(Path("/home/pierre/gazon/temp/foo"));
     Filesystem::commit(file);
-    Filesystem::debug(&Filesystem::root);
+    */Filesystem::debug(&Filesystem::root);
 
     /*Filesystem::debug(&Filesystem::root);
     Filesystem::rm(Path("/home/pierre/gazon/temp"));

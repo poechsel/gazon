@@ -16,13 +16,14 @@ Regex::Regex(std::string pattern) {
     RegexPostfix post(pattern);
     std::cout<<post.debug()<<"\n";
     m_nfa.from(post);
+    m_dfa.linkNfa(&m_nfa);
     std::cout<<"size of the nfa: "<<m_nfa.getNStates()<<"\n";
 }
 
 bool Regex::match(std::string const &s) {
-    return m_nfa.match(s);
+    return m_dfa.match(s);
 }
 
 bool Regex::asMatch(std::string const &s) {
-    return m_nfa.asMatch(s);
+    return m_dfa.asMatch(s);
 }
