@@ -139,6 +139,8 @@ int main() {
     auto file = Filesystem::createFile(Path("/home/pierre/gazon/temp/foo"));
     Filesystem::commit(file);
     */Filesystem::debug(&Filesystem::root);
+    auto file = Filesystem::createFile(Path("/home/pierre/gazon/temp/foo"));
+    Filesystem::commit(file);
 
     /*Filesystem::debug(&Filesystem::root);
     Filesystem::rm(Path("/home/pierre/gazon/temp"));

@@ -47,7 +47,7 @@ void Filesystem::mkdir_(const Path &path) {
 
 File Filesystem::createFile(const Path &path) {
     int number_node_to_add = _getNAddedNodes(path);
-    if (number_node_to_add != 1) {
+    if (number_node_to_add > 1) {
         throw FilesystemException("Can't create " + path.string() + ": skipping part of the arborescence");
     }
     return File(path, "w");
@@ -59,6 +59,14 @@ void Filesystem::commit(File &file) {
     if (stat(file.path.string().c_str(), &status) == -1) {
         throw FilesystemException(strerror(errno));
     }
+
+    // We try to remove the file from the virtual fs
+    // If we can delete it, it means that we are overwritting it
+    // Then deleting the virtual binding is a good thing to maintain integrity.
+    // Otherwise, an exception will be raised, which we will catch
+    try {
+        _removeNodeFromVirtualFS(file.path);
+    } catch (const std::exception&) {}
     _insertNode(file.path, &status, false);
 }
 
