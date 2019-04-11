@@ -8,8 +8,7 @@ void Grep::run(Path path, std::string pattern) {
     for (auto efile : entry->children) {
         if (!efile.second->isFolder
             && !Filesystem::isHiddenFile(efile.first)) {
-            std::string cpath = path.string() + "/" + efile.first;
-            File file(cpath, "rb");
+            File file = Filesystem::read(path + efile.first);
             std::string line;
             bool status = true;
             do {

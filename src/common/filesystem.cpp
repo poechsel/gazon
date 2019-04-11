@@ -4,11 +4,11 @@ FilesystemEntry Filesystem::root;
 std::unordered_map<uid_t, std::string> Filesystem::users;
 std::unordered_map<uid_t, std::string> Filesystem::groups;
 
-void File::open(std::string path, std::string type) {
+void File::open(const Path &path, std::string type) {
     m_opened_type = type;
-    m_file = fopen(path.c_str(), type.c_str());
+    m_file = fopen(path.string().c_str(), type.c_str());
     if (!m_file)
-        throw FilesystemException(path + "can't be opened");
+        throw FilesystemException(path.string() + "can't be opened");
 }
 
 void File::close() {

@@ -21,16 +21,16 @@
 
 class Path {
 public:
-    typedef std::vector<std::string>::iterator iterator;
+    typedef std::vector<std::string>::const_iterator iterator;
 
-    iterator begin() {
+    iterator begin() const {
         return m_parts.begin();
     }
-    iterator end() {
+    iterator end() const {
         return m_parts.end();
     }
 
-    unsigned int size() {
+    unsigned int size() const {
         return m_parts.size();
     }
 
@@ -69,6 +69,17 @@ public:
 
     std::string string() const {
         return m_string;
+    }
+
+    Path& operator+=(const std::string &next_part) {
+        m_parts.push_back(next_part);
+        m_string += "/" + next_part;
+        return *this;
+    }
+ 
+    friend Path operator+(Path path, const std::string &next_part) {
+        path += next_part;
+        return path;
     }
 
 private:
@@ -120,15 +131,16 @@ public:
 
 class File {
 public:
-    File(std::string path, std::string type): m_file(nullptr) {
+    File(const Path &path, std::string type): path(path), m_file(nullptr) {
         open(path, type);
     }
     ~File() {
         close();
     }
-    void open(std::string path, std::string type);
+    void open(const Path &path, std::string type);
     void close();
     bool getLine(std::string &out);
+    Path path;
 private:
     FILE* m_file;
     std::string m_opened_type;
@@ -137,13 +149,11 @@ private:
 class Filesystem {
 public:
     /* Scan all folders with parent path and add them to our local database */
-    static void scan(Path path) {
+    static void scan(const Path &path) {
         if (!path.isAbsolute()) {
-            // TODO: send error
-            std::cout<<"The path should be absolute\n";
-            exit(0);
+            throw FilesystemException("Can only initialize from absolute paths");
         }
-        ftw(path.string().c_str(), callbackftw, 8);
+        ftw(path.string().c_str(), _callbackftw, 8);
     }
     static FilesystemEntry root;
     static std::unordered_map<uid_t, std::string> users;
@@ -163,7 +173,95 @@ public:
         }
     }
 
-   static int insertNode(Path &path, const struct stat *status, bool isFolder) {
+    static void rm(const Path &path) {
+        _removeNode(path);
+        nftw(path.string().c_str(), _removewrapper, 8, FTW_DEPTH);
+    }
+
+    static void mkdir_(const Path &path) {
+        int number_node_to_add = _getNAddedNodes(path);
+        if (number_node_to_add != 1) {
+            throw FilesystemException("Can't create " + path.string() + ": skipping part of the arborescence");
+        }
+        if (mkdir(path.string().c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) == -1) {
+            throw FilesystemException(strerror(errno));
+        }
+        struct stat status;
+        if (stat(path.string().c_str(), &status) == -1) {
+            throw FilesystemException(strerror(errno));
+        }
+        _insertNode(path, &status, true);
+    }
+
+    static File createFile(const Path &path) {
+        int number_node_to_add = _getNAddedNodes(path);
+        if (number_node_to_add != 1) {
+            throw FilesystemException("Can't create " + path.string() + ": skipping part of the arborescence");
+        }
+        return File(path, "w");
+    }
+
+    static void commit(File &file) {
+        file.close();
+        struct stat status;
+        if (stat(file.path.string().c_str(), &status) == -1) {
+            throw FilesystemException(strerror(errno));
+        }
+        _insertNode(file.path, &status, false);
+    }
+
+    static std::string getUser(uid_t uid) {
+        if (Filesystem::users.find(uid) == Filesystem::users.end()) {
+            struct passwd *entry = getpwuid (uid);
+            char const *name = entry ? entry->pw_name : "";
+            Filesystem::users[uid] = std::string(name);
+        }
+        return Filesystem::users[uid];
+    }
+
+    static std::string getGroup(uid_t uid) {
+        if (Filesystem::groups.find(uid) == Filesystem::groups.end()) {
+            auto entry = getgrgid (uid);
+            char const *name = entry ? entry->gr_name : "";
+            Filesystem::groups[uid] = std::string(name);
+        }
+        return Filesystem::groups[uid];
+    }
+
+    static FilesystemEntry* getEntryNode(const Path &path) {
+        FilesystemEntry *entry = &Filesystem::root;
+        for (auto el : path) {
+            if (entry->children.count(el) > 0) {
+                entry = entry->children[el];
+            } else {
+                throw FilesystemException(path.string() + " not found");
+            }
+        }
+        return entry;
+    }
+
+    static bool isHiddenFile(std::string name) {
+        return name.size() > 0 ? name[0] == '.' : false;
+    }
+
+    static File read(const Path &path) {
+        getEntryNode(path); // only to throw an error if we can't access this file
+        return File(path, "rb");
+    }
+
+private:
+    static int _getNAddedNodes(const Path &path) {
+        FilesystemEntry* entry = &Filesystem::root;
+        auto it = path.begin();
+        for (unsigned int i = 0; it != path.end(); it++, i++) {
+            if (entry->children.count(*it) == 0) {
+                return path.size() - i;
+            }
+            entry = entry->get(*it);
+        }
+        return 0;
+    }
+   static int _insertNode(const Path &path, const struct stat *status, bool isFolder) {
         FilesystemEntry* entry = &Filesystem::root;
         size_t size_file = status->st_size;
         std::string cpath = "";
@@ -190,18 +288,18 @@ public:
         return 0;
     }
 
-    static int callbackftw(const char *name, const struct stat *status, int type) {
+    static int _callbackftw(const char *name, const struct stat *status, int type) {
         if(type == FTW_NS)
             return 0;
 
         std::string s = std::string(name);
         Path path(s);
-        return insertNode(path, status, type == FTW_D);
+        return _insertNode(path, status, type == FTW_D);
     }
 
     /* remove the metadata corresponding to a path inside the tree
        WARNING: do not physicall delete the file */
-    static void removeNode(Path path) {
+    static void _removeNode(const Path &path) {
         FilesystemEntry* node_to_delete = getEntryNode(path);
         FilesystemEntry *entry = &Filesystem::root;
         for (auto el : path) {
@@ -216,57 +314,8 @@ public:
         }
     }
 
-    static int removewrapper(const char *path, const struct stat *, int, struct FTW *) {
+    static int _removewrapper(const char *path, const struct stat *, int, struct FTW *) {
         return remove(path);
     }
 
-    static void removePath(Path path) {
-        removeNode(path);
-        nftw(path.string().c_str(), removewrapper, 8, FTW_DEPTH);
-    }
-
-    static std::string getUser(uid_t uid) {
-        if (Filesystem::users.find(uid) == Filesystem::users.end()) {
-            struct passwd *entry = getpwuid (uid);
-            char const *name = entry ? entry->pw_name : "";
-            Filesystem::users[uid] = std::string(name);
-        }
-        return Filesystem::users[uid];
-    }
-
-    static std::string getGroup(uid_t uid) {
-        if (Filesystem::groups.find(uid) == Filesystem::groups.end()) {
-            auto entry = getgrgid (uid);
-            char const *name = entry ? entry->gr_name : "";
-            Filesystem::groups[uid] = std::string(name);
-        }
-        return Filesystem::groups[uid];
-    }
-
-    static FilesystemEntry* getEntryNode(Path path) {
-        FilesystemEntry *entry = &Filesystem::root;
-        for (auto el : path) {
-            if (entry->children.count(el) > 0) {
-                entry = entry->children[el];
-            } else {
-                throw FilesystemException(path.string() + " not found");
-            }
-        }
-        return entry;
-    }
-
-    static bool isHiddenFile(std::string name) {
-        return name.size() > 0 ? name[0] == '.' : false;
-    }
-
-    FILE *read(const Path &path) {
-        getEntryNode(path); // only to throw an error if we can't access this file
-        FILE* f = fopen(path.string().c_str(), "r");
-        if (!f) {
-            throw FilesystemException(path.string() + " can't be opened");
-        }
-        return f;
-    }
-
-private:
 };
