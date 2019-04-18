@@ -5,6 +5,7 @@
 #include <functional>
 #include <iostream>
 #include <common/common.h>
+#include <common/socket.h>
 
 struct CommandException : public std::runtime_error {
 public:
@@ -16,32 +17,26 @@ public:
     }
 };
 
-
-class Context {
-};
-
-
 /* Enumeration of possible types for the arguments */
 enum ArgTypes {
-               ARG_PATH,
-               ARG_INT,
-               ARG_STR,
+    ARG_PATH,
+    ARG_INT,
+    ARG_STR,
 };
-
 
 typedef std::vector<std::string> CommandArgs;
 
 typedef std::vector<ArgTypes> Specification;
 
+// TODO(liautaud)
+class Context {};
+
 class Command {
 public:
-    virtual void executeServer(Context *context, const CommandArgs& args) = 0;
-    virtual void executeClient(Context *context, const CommandArgs& args) = 0;
+    virtual void execute(Socket &socket, Context &context, const CommandArgs& args) = 0;
     virtual Specification getSpecification() const = 0;
     virtual ~Command(){}
 };
-
-
 
 /* The code for the factory is strongly inspired by Nori */
 class CommandFactory {
@@ -76,8 +71,8 @@ std::tuple<Command*, CommandArgs> commandFromInput(std::string const& line);
 /* Return true if the argument list matches the specification */
 bool typecheckArguments(Specification const& spec, CommandArgs const &args);
 
-/* Evaluate the command express in line [line] */
-void evaluateCommandFromLine(Context *context, std::string const& line, bool onServer = true);
+// /* Evaluate the command express in line [line] */
+// void evaluateCommandFromLine(Context *context, std::string const& line, bool onServer = true);
 
 /// Macro for registering an object constructor with the \ref NoriObjectFactory
 #define REGISTER_COMMAND(cls, name)                              \

@@ -2,15 +2,20 @@
 
 class HelloCommand : public Command {
 public:
-    virtual void executeServer(Context *context, const CommandArgs &args) {
-        std::cout<<"Hello on the server ["<<args[0]<<"]\n";
+    void execute(Socket &socket, Context &context, const CommandArgs &args) {
+        std::cout << "Hello on the server [" << args[0] << "]\n";
+
+        // Send to socket.
+        // Make sure to either add std::endl or \n at the end.
+        socket << "Hello there!" << std::endl;
+
+        // Receive from socket.
+        // This call blocks until it receives a whole line.
+        std::string packet;
+        socket >> packet;
     }
 
-    virtual void executeClient(Context *context, const CommandArgs &args) {
-        std::cout<<"Hello on the client\n";
-    }
-
-    virtual Specification getSpecification() const {
+    Specification getSpecification() const {
         return {ARG_STR};
     }
 private:

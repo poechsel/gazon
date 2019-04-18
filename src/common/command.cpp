@@ -51,18 +51,18 @@ bool typecheckArguments(Specification const& spec, CommandArgs const& args) {
     return true;
 }
 
-void evaluateCommandFromLine(Context *context, std::string const& line, bool onServer) {
-    Command *command;
-    CommandArgs command_args;
-    std::tie(command, command_args) = commandFromInput(line);
+// void evaluateCommandFromLine(Context *context, std::string const& line, bool onServer) {
+//     Command *command;
+//     CommandArgs command_args;
+//     std::tie(command, command_args) = commandFromInput(line);
 
-    if (typecheckArguments(command->getSpecification(), command_args)) {
-        if (onServer)
-            command->executeServer(context, command_args);
-        else
-            command->executeClient(context, command_args);
-    } else {
-        // TODO: raise an exception
-        std::cout<<"TYPECHECKING error\n";
-    }
-}
+//     if (typecheckArguments(command->getSpecification(), command_args)) {
+//         if (onServer)
+//             command->executeServer(context, command_args);
+//         else
+//             command->executeClient(context, command_args);
+//     } else {
+//         // TODO: raise an exception
+//         std::cout<<"TYPECHECKING error\n";
+//     }
+// }

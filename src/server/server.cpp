@@ -94,7 +94,7 @@ void connectAndListen(uint16_t port, int server_socket) {
                     buffer[l] = 0;
                     // TODO: execute the following in a thread
                     try {
-                        evaluateCommandFromLine(nullptr, std::string(buffer), true);
+                        // evaluateCommandFromLine(nullptr, std::string(buffer), true);
                     } catch (const std::exception& e) {
                         // TODO send back the error
                         std::cout<<e.what()<<"\n";
@@ -132,8 +132,10 @@ int main() {
     int server_socket = -1;
     try {
         Config config = Config::fromFile("grass.conf");
-        auto command = CommandFactory::create("ping");
-        command->executeServer(nullptr, {"www.google.com"});
+        auto command = CommandFactory::create("hello");
+        Socket socket;
+        Context context;
+        command->execute(socket, context, {"www.google.com"});
         delete(command);
         connectAndListen(config.port, server_socket);
         CommandFactory::destroy();
