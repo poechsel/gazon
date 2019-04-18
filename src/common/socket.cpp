@@ -1,5 +1,6 @@
 #include <common/socket.h>
 
+#include <iostream>
 #include <algorithm>
 #include <errno.h>
 #include <unistd.h>
@@ -9,7 +10,8 @@
 #include <sys/types.h>
 #include <sys/select.h>
 
-using std::cout, std::endl;
+using std::cout;
+using std::endl;
 
 /** Return a formatted string containing the current value of errno. */
 std::string formatError(const string& message) {
@@ -207,7 +209,7 @@ void ConnectionPool::run() {
                      << inet_ntoa(incomingAddress.sin_addr) << ":"
                      << ntohs(incomingAddress.sin_port) << endl;
 
-                active.insert(Socket(incomingSocket));
+                // active.insert(Socket(incomingSocket));
             } 
         }
 
