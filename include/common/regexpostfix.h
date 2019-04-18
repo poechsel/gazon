@@ -185,7 +185,7 @@ private:
                     throw RegexException("[Syntax error] An {n, m} expression must have 0 <= n <= m");
                 // we do not skip the next token right now. We want to return the
                 // index of the '}'
-                return {i_next_token, repetitions_min, repetitions_max};
+                return std::make_tuple(i_next_token, repetitions_min, repetitions_max);
             } else if (c == ',' && !saw_one_coma) {
                 saw_one_coma = true;
                 i_next_token++;
@@ -206,7 +206,7 @@ private:
             }
         }
         throw RegexException("[Syntax error] Invalid syntax for a {...} expression");
-        return {-1, repetitions_min, repetitions_max};
+        return std::make_tuple(-1, repetitions_min, repetitions_max);
     }
 
     void translateRepetitions(std::string pattern, int min, int max) {

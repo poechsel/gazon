@@ -22,7 +22,7 @@ std::tuple<Command*, CommandArgs> commandFromInput(std::string const& input) {
         start = end;
         command_args.push_back(arg);
     }
-    return {command, command_args};
+    return make_tuple(command, command_args);
 }
 
 bool typecheckArguments(Specification const& spec, CommandArgs const& args) {

@@ -23,7 +23,7 @@ std::tuple<std::string, uint16_t> parseArgs(int argc, char **argv) {
         uint16_t server_port = 0;
         if (0 <= server_port_i && server_port_i <= static_cast<int>(UINT16_MAX)) {
             server_port = static_cast<uint16_t>(server_port_i);
-            return {server_ip, server_port};
+            return make_tuple(server_ip, server_port);
         } else {
             throw std::invalid_argument("Port number is too big");
         }
