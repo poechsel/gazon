@@ -24,7 +24,7 @@ public:
 
     bool empty() {
         std::unique_lock<std::mutex> lock(m_mutex);
-        return m_queue.empty();
+        return m_size_queue == 0;
     }
 
     void done(const Tag &tag) {
@@ -35,7 +35,7 @@ public:
 
     void push(const Tag &tag, const Element &element) {
         std::unique_lock<std::mutex> lock(m_mutex);
-        m_queue.push_back({tag, element, false});
+        m_queue[m_size_queue++] = {tag, element, false};
         m_condition.notify_one();
     }
 
@@ -48,7 +48,7 @@ public:
             return false;
 
         bool status = false;
-        for (unsigned int i = 0; i < m_queue.size(); ++i) {
+        for (unsigned int i = 0; i < m_size_queue; ++i) {
             if (!m_queue[i].wasUsed
                 && m_tags_being_used.find(m_queue[i].tag) == m_tags_being_used.end()) {
                 status = true;
@@ -60,8 +60,8 @@ public:
             }
         }
 
-        while(!m_queue.empty() && m_queue.front().wasUsed) {
-            m_queue.pop_front();
+        while(m_size_queue > 0 && m_queue[m_size_queue - 1].wasUsed) {
+            m_size_queue--;
         }
         return status;
     }
@@ -74,8 +74,8 @@ public:
 
 private:
     bool unsafeCanSchedule() {
-        if (m_queue.empty()) return false;
-        for (unsigned int i = 0; i < m_queue.size(); ++i) {
+        if (m_size_queue == 0) return false;
+        for (unsigned int i = 0; i < m_size_queue; ++i) {
             if (!m_queue[i].wasUsed
                 && m_tags_being_used.find(m_queue[i].tag) == m_tags_being_used.end()) {
                 return true;
@@ -89,10 +89,11 @@ private:
         bool wasUsed;
     };
     std::set<Tag> m_tags_being_used;
-    std::deque<TaggedElement> m_queue;
     std::mutex m_mutex;
     std::condition_variable m_condition;
     bool m_exists;
+    uint32_t m_size_queue = 0;
+    TaggedElement m_queue[256];
 };
 
 
@@ -133,8 +134,7 @@ private:
             }
         }
     }
-
-    ThreadQueueGroup<Tag, std::function<void()>> m_queue;
     std::atomic_bool m_pool_done;
     std::vector<std::thread> m_threads;
+    ThreadQueueGroup<Tag, std::function<void()>> m_queue;
 };
