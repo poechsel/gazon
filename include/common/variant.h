@@ -1,4 +1,5 @@
 #include <iostream>
+#include <typeinfo>
 
 /* Inspire by https://www.ojdip.net/2013/10/implementing-a-variant-type-in-cpp/ */
 template <class... Args>
