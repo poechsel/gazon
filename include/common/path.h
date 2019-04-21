@@ -46,7 +46,9 @@ public:
 
     std::string getHome() const {
         std::string current_usera;
-        getlogin_r((char*)current_usera.c_str(), 32);
+        // TODO
+        throw NetworkingException("'~' expansion not implemented");
+        //getlogin_r((char*)current_usera.c_str(), 32);
         return current_usera;
     }
     bool isAbsolute() const {

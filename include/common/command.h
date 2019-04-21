@@ -1,11 +1,13 @@
 #pragma once
 
 #include <vector>
+#include <common/variant.h>
 #include <unordered_map>
 #include <functional>
 #include <iostream>
 #include <common/common.h>
 #include <common/socket.h>
+#include <common/path.h>
 
 struct CommandException : public std::runtime_error {
 public:
@@ -24,7 +26,9 @@ enum ArgTypes {
     ARG_STR,
 };
 
-typedef std::vector<std::string> CommandArgs;
+typedef std::vector<std::string> CommandArgsString;
+typedef Variant<int, std::string, Path> CommandArg;
+typedef std::vector<CommandArg> CommandArgs;
 
 typedef std::vector<ArgTypes> Specification;
 
@@ -66,10 +70,10 @@ private:
    Ex:
    (6, command_hello) = commandFromInput("hello a b c d e");
 */
-std::tuple<Command*, CommandArgs> commandFromInput(std::string const& line);
+std::tuple<Command*, CommandArgsString> commandFromInput(std::string const& line);
 
 /* Return true if the argument list matches the specification */
-bool typecheckArguments(Specification const& spec, CommandArgs const &args);
+CommandArgs convertAndTypecheckArguments(Specification const& spec, CommandArgsString const &args);
 
 // /* Evaluate the command express in line [line] */
 // void evaluateCommandFromLine(Context *context, std::string const& line, bool onServer = true);

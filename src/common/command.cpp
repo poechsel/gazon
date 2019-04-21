@@ -8,12 +8,12 @@ void CommandFactory::registerC(const std::string &name, Constructor c) {
     (*m_constructors)[name] = c;
 }
 
-std::tuple<Command*, CommandArgs> commandFromInput(std::string const& input) {
+std::tuple<Command*, CommandArgsString> commandFromInput(std::string const& input) {
     uint start = skipEmptyChars(0, input);
     uint stop_command_name = skipNonEmptyChars(start, input);
     std::string command_name = input.substr(start, stop_command_name - start);
     Command* command = CommandFactory::create(command_name);
-    CommandArgs command_args;
+    CommandArgsString command_args;
     start = stop_command_name;
     while (start < input.size()) {
         start = skipEmptyChars(start, input);
@@ -25,30 +25,28 @@ std::tuple<Command*, CommandArgs> commandFromInput(std::string const& input) {
     return make_tuple(command, command_args);
 }
 
-bool typecheckArguments(Specification const& spec, CommandArgs const& args) {
+CommandArgs convertAndTypecheckArguments(Specification const& spec, CommandArgsString const& args) {
     if (spec.size() != args.size())
-        return false;
+        throw CommandException("number of arguments doesn't match");
+    std::vector<CommandArg> converted; 
     for (uint i = 0; i < spec.size(); ++i) {
-        switch (spec[i]) {
-        case ARG_INT:
+        CommandArg arg;
+        if (spec[i] == ARG_INT) {
             try {
-                std::stoi(args[i]);
+                arg.set<int>(std::stoi(args[i]));
                 break;
             } catch (const std::exception &e) {
-                return false;
+                throw CommandException("argument should be an int");
             }
-
-        case ARG_PATH:
-            for (auto c : args[i])
-                if (std::isspace(c))
-                    return false;
-            break;
-
-        case ARG_STR:
-            break;
+        } else if (spec[i] == ARG_PATH) {
+            Path path(args[i]);
+            arg.set<Path>(path);
+        } else {
+            arg.set<std::string>(args[i]);
         }
+        converted.push_back(arg);
     }
-    return true;
+    return converted;
 }
 
 // void evaluateCommandFromLine(Context *context, std::string const& line, bool onServer) {

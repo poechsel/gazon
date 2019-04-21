@@ -3,7 +3,7 @@
 class HelloCommand : public Command {
 public:
     void execute(Socket &socket, Context &context, const CommandArgs &args) {
-        std::cout << "Hello on the server [" << args[0] << "]\n";
+        std::cout << "Hello on the server [" << args[0].get<std::string>() << "]\n";
 
         // Send to socket.
         // Make sure to either add std::endl or \n at the end.

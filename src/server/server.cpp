@@ -178,6 +178,7 @@ int main() {
     std::cout<<re.match("abbab")<<"\n";
     return 0;
     */
+    /*
   pool.schedule(1, [](){std::cout<<"foo\n"; sleep(3);});
   pool.schedule(1, [](){std::cout<<"baz\n"; sleep(1);});
   pool.schedule(20, [](){std::cout<<"bar\n"; sleep(1);});
@@ -187,7 +188,7 @@ int main() {
   std::cout<<"joining threads\n";
   pool.join();
   return 0;
-  /**/
+  */
     // Listen to the port and handle each connection
     int server_socket = -1;
     try {
@@ -195,7 +196,8 @@ int main() {
         auto command = CommandFactory::create("hello");
         Socket socket;
         Context context;
-        command->execute(socket, context, {"www.google.com"});
+        auto args = convertAndTypecheckArguments(command->getSpecification(), {"www.google.com"});
+        command->execute(socket, context, args);
         delete(command);
         connectAndListen(config.port, server_socket);
         CommandFactory::destroy();
