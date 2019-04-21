@@ -40,6 +40,13 @@ CommandArgs convertAndTypecheckArguments(Specification const& spec, CommandArgsS
             }
         } else if (spec[i] == ARG_PATH) {
             Path path(args[i]);
+            if (path.isAbsolute()) {
+                throw CommandException("we only accept relative paths");
+            }
+            if (path.attemptParentTraversal()) {
+                throw CommandException("detected attempt of directory traversal");
+            }
+            // TODO: check if the path is not too long
             arg.set<Path>(path);
         } else {
             arg.set<std::string>(args[i]);
