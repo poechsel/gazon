@@ -1,14 +1,15 @@
 #include <common/grep.h>
 
 void Grep::run(Path path, std::string pattern) {
-    auto entry = Filesystem::getEntryNode(path);
     Regex regex(".*" + pattern + ".*");
 
     std::vector<std::string> matched_files;
+    Filesystem::lock();
+    auto entry = Filesystem::unsafeGetEntryNode(path);
     for (auto efile : entry->children) {
         if (!efile.second->isFolder
             && !Filesystem::isHiddenFile(efile.first)) {
-            File file = Filesystem::read(path + efile.first);
+            File file = Filesystem::unsafeRead(path + efile.first);
             std::string line;
             bool status = true;
             do {
@@ -23,6 +24,7 @@ void Grep::run(Path path, std::string pattern) {
             file.close();
         }
     }
+    Filesystem::unlock();
 
     std::sort(matched_files.begin(), matched_files.end(),
               [](const std::string &a, const std::string &b) {

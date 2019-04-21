@@ -162,7 +162,6 @@ void timeToStr(time_t time, char* time_str, unsigned int n) {
 }
 
 void Ls::run(Path path) {
-    auto entry = Filesystem::getEntryNode(path);
     std::vector<Lsdata> files;
     Lsmaxlength length = {0, 0, 0, 0, 0, 0, 0};
     int nblocks = 0;
@@ -170,6 +169,8 @@ void Ls::run(Path path) {
     /* We start by storing in an array every element
        that will be part of the final output. We also
        keep track of the width of each column */
+    Filesystem::lock();
+    auto entry = Filesystem::unsafeGetEntryNode(path);
     for (auto element : entry->children) {
         if (!Filesystem::isHiddenFile(element.first) && element.second->status) {
             struct stat* status = element.second->status;
@@ -187,8 +188,8 @@ void Ls::run(Path path) {
             Lsdata filedata = {
                                std::string(mode_str),
                                std::string(time_str),
-                               Filesystem::getGroup(status->st_uid),
-                               Filesystem::getUser(status->st_uid),
+                               Filesystem::unsafeGetGroup(status->st_uid),
+                               Filesystem::unsafeGetUser(status->st_uid),
                                element.first,
                                std::to_string(status->st_nlink),
                                std::to_string(status->st_size)
@@ -199,6 +200,7 @@ void Ls::run(Path path) {
             files.push_back(filedata);
         }
     }
+    Filesystem::unlock();
 
     /* Then, every file can be sorted according to its name.
        `strcoll` is a local-dependant string comparison.

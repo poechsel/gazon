@@ -1,23 +1,31 @@
 #include <common/filesystem.h>
 
-FilesystemEntry Filesystem::root;
-std::unordered_map<uid_t, std::string> Filesystem::users;
-std::unordered_map<uid_t, std::string> Filesystem::groups;
+FilesystemEntry Filesystem::m_root;
+std::unordered_map<uid_t, std::string> Filesystem::m_users;
+std::unordered_map<uid_t, std::string> Filesystem::m_groups;
+std::mutex Filesystem::m_mutex;
 
 void Filesystem::scan(const Path &path) {
+    // thread safe
+    std::unique_lock<std::mutex> lock(m_mutex);
     if (!path.isAbsolute()) {
         throw FilesystemException("Can only initialize from absolute paths");
     }
-    ftw(path.string().c_str(), _callbackftw, 8);
+    // we are using the unsafe version as the callback will be called very frequently,
+    // so we must avoid locking/unlocking to often
+    ftw(path.string().c_str(), unsafeCallbackftw, 8);
 }
 
 void Filesystem::debug(FilesystemEntry *entry, bool showHidden, int level) {
+    std::unique_lock<std::mutex> lock(m_mutex);
     std::string indent = "";
     for (int i = 0; i < level; ++i)
         indent+="  ";
     for (auto it : entry->children) {
         if (it.first[0] != '.' && !showHidden) {
-            std::cout<<indent<<it.first<<"("<<it.second->nRecChildren<<" "<<it.second->size<<")"<<"\n";
+            std::cout<<indent<<it.first
+                     <<"("<<it.second->nRecChildren<<" "
+                     <<it.second->size<<")"<<"\n";
             if (it.second->isFolder) {
                 debug(it.second, showHidden, level+1);
             }
@@ -26,16 +34,20 @@ void Filesystem::debug(FilesystemEntry *entry, bool showHidden, int level) {
 }
 
 void Filesystem::rm(const Path &path) {
+    // thread safe because _removeNodeFromVirtualFS is threadsafe
     _removeNodeFromVirtualFS(path);
     nftw(path.string().c_str(), _removewrapper, 8, FTW_DEPTH);
 }
 
-void Filesystem::mkdir_(const Path &path) {
-    int number_node_to_add = _getNAddedNodes(path);
+void Filesystem::mkdir(const Path &path) {
+    // Thread safe because _getNumberMissingChild and _insertNode are threadsafe
+    int number_node_to_add = _getNumberMissingChild(path);
     if (number_node_to_add != 1) {
-        throw FilesystemException("Can't create " + path.string() + ": skipping part of the arborescence");
+        throw FilesystemException("Can't create "
+                                  + path.string()
+                                  + ": skipping part of the arborescence");
     }
-    if (mkdir(path.string().c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) == -1) {
+    if (::mkdir(path.string().c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) == -1) {
         throw FilesystemException(strerror(errno));
     }
     struct stat status;
@@ -45,15 +57,22 @@ void Filesystem::mkdir_(const Path &path) {
     _insertNode(path, &status, true);
 }
 
+// TODO: open a file in a temp dir
 File Filesystem::createFile(const Path &path) {
-    int number_node_to_add = _getNAddedNodes(path);
+    // thread safe because _getNumberMissingChild is threadsafe
+    int number_node_to_add = _getNumberMissingChild(path);
+    // we can either overwrite a file or write a new one
+    // In the first case number_node_to_add is 0, in the second one
     if (number_node_to_add > 1) {
-        throw FilesystemException("Can't create " + path.string() + ": skipping part of the arborescence");
+        throw FilesystemException("Can't create "
+                                  + path.string()
+                                  + ": skipping part of the arborescence");
     }
     return File(path, "w");
 }
 
 void Filesystem::commit(File &file) {
+    // threadsafe because _removeNodeFromVirtualFS and _insertNode are thread safe
     file.close();
     struct stat status;
     if (stat(file.path.string().c_str(), &status) == -1) {
@@ -70,26 +89,26 @@ void Filesystem::commit(File &file) {
     _insertNode(file.path, &status, false);
 }
 
-std::string Filesystem::getUser(uid_t uid) {
-    if (Filesystem::users.find(uid) == Filesystem::users.end()) {
+std::string Filesystem::unsafeGetUser(uid_t uid) {
+    if (Filesystem::m_users.find(uid) == Filesystem::m_users.end()) {
         struct passwd *entry = getpwuid (uid);
         char const *name = entry ? entry->pw_name : "";
-        Filesystem::users[uid] = std::string(name);
+        Filesystem::m_users[uid] = std::string(name);
     }
-    return Filesystem::users[uid];
+    return Filesystem::m_users[uid];
 }
 
-std::string Filesystem::getGroup(uid_t uid) {
-    if (Filesystem::groups.find(uid) == Filesystem::groups.end()) {
+std::string Filesystem::unsafeGetGroup(uid_t uid) {
+    if (Filesystem::m_groups.find(uid) == Filesystem::m_groups.end()) {
         auto entry = getgrgid (uid);
         char const *name = entry ? entry->gr_name : "";
-        Filesystem::groups[uid] = std::string(name);
+        Filesystem::m_groups[uid] = std::string(name);
     }
-    return Filesystem::groups[uid];
+    return Filesystem::m_groups[uid];
 }
 
-FilesystemEntry* Filesystem::getEntryNode(const Path &path) {
-    FilesystemEntry *entry = &Filesystem::root;
+FilesystemEntry* Filesystem::unsafeGetEntryNode(const Path &path) {
+    FilesystemEntry *entry = &Filesystem::m_root;
     for (auto el : path) {
         if (entry->children.count(el) > 0) {
             entry = entry->children[el];
@@ -104,13 +123,21 @@ bool Filesystem::isHiddenFile(std::string name) {
     return name.size() > 0 ? name[0] == '.' : false;
 }
 
+
 File Filesystem::read(const Path &path) {
-    getEntryNode(path); // only to throw an error if we can't access this file
+    std::unique_lock<std::mutex> lock(m_mutex);
+    return unsafeRead(path);
+}
+
+File Filesystem::unsafeRead(const Path &path) {
+    unsafeGetEntryNode(path); // only to throw an error if we can't access this file
     return File(path, "rb");
 }
 
-int Filesystem::_getNAddedNodes(const Path &path) {
-    FilesystemEntry* entry = &Filesystem::root;
+int Filesystem::_getNumberMissingChild(const Path &path) {
+    // thread safe
+    std::unique_lock<std::mutex> lock(m_mutex);
+    FilesystemEntry* entry = &Filesystem::m_root;
     auto it = path.begin();
     for (unsigned int i = 0; it != path.end(); it++, i++) {
         if (entry->children.count(*it) == 0) {
@@ -120,8 +147,14 @@ int Filesystem::_getNAddedNodes(const Path &path) {
     }
     return 0;
 }
+
 int Filesystem::_insertNode(const Path &path, const struct stat *status, bool isFolder) {
-    FilesystemEntry* entry = &Filesystem::root;
+    std::unique_lock<std::mutex> lock(m_mutex);
+    return unsafeInsertNode(path, status, isFolder);
+}
+
+int Filesystem::unsafeInsertNode(const Path &path, const struct stat *status, bool isFolder) {
+    FilesystemEntry* entry = &Filesystem::m_root;
     size_t size_file = status->st_size;
     std::string cpath = "";
     auto it = path.begin();
@@ -147,20 +180,22 @@ int Filesystem::_insertNode(const Path &path, const struct stat *status, bool is
     return 0;
 }
 
-int Filesystem::_callbackftw(const char *name, const struct stat *status, int type) {
+int Filesystem::unsafeCallbackftw(const char *name, const struct stat *status, int type) {
     if(type == FTW_NS)
         return 0;
 
     std::string s = std::string(name);
     Path path(s);
-    return _insertNode(path, status, type == FTW_D);
+    return unsafeInsertNode(path, status, type == FTW_D);
 }
 
 /* remove the metadata corresponding to a path inside the tree
    WARNING: do not physicall delete the file */
 void Filesystem::_removeNodeFromVirtualFS(const Path &path) {
-    FilesystemEntry* node_to_delete = getEntryNode(path);
-    FilesystemEntry *entry = &Filesystem::root;
+    // thread safe
+    std::unique_lock<std::mutex> lock(m_mutex);
+    FilesystemEntry* node_to_delete = unsafeGetEntryNode(path);
+    FilesystemEntry *entry = &Filesystem::m_root;
     for (auto el : path) {
         entry->size -= node_to_delete->size;
         entry->nRecChildren -= node_to_delete->nRecChildren + 1;
@@ -174,5 +209,14 @@ void Filesystem::_removeNodeFromVirtualFS(const Path &path) {
 }
 
 int Filesystem::_removewrapper(const char *path, const struct stat *, int, struct FTW *) {
+    // does not need to be thread safe
     return remove(path);
+}
+
+void Filesystem::lock() {
+    m_mutex.lock();
+}
+
+void Filesystem::unlock() {
+    m_mutex.unlock();
 }
