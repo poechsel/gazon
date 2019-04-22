@@ -1,5 +1,6 @@
 #include <common/socket.h>
 
+#include <vector>
 #include <iostream>
 #include <algorithm>
 #include <errno.h>
@@ -117,6 +118,11 @@ Socket& Socket::operator>>(string& destination) {
         received.append(buffer, bytesRead);
     }
 
+    // If there is nothing left to read, the connection is closed.
+    if (received.length() == 0) {
+        throw DisconnectException();
+    }
+
     // Extract the first line, and keep the rest in a buffer.
     destination = received.substr(0, breakPosition);
     received.erase(0, breakPosition + 1);
@@ -158,19 +164,12 @@ std::pair<fd_set, int> ConnectionPool::makeDescriptorSet() {
     int maximum = fd;
 
     // Add all the connections to the set.
-    for (auto const& socket : active) {
-        FD_SET(socket.fd, &set);
-        maximum = std::max(socket.fd, maximum);
+    for (auto const& connection : active) {
+        FD_SET(connection.first, &set);
+        maximum = std::max(connection.first, maximum);
     }
 
     return std::make_pair(set, maximum);
-}
-
-
-/** Removes a socket from the connection pool. */
-void ConnectionPool::remove(const Socket& socket) {
-    // FIXME(liautaud): Do we need to call close() on the socket itself?
-    // TODO(liautaud): Remove from the collection.
 }
 
 /** Run the event loop of the connection pool. */
@@ -179,6 +178,7 @@ void ConnectionPool::run() {
     int maximum;
 
     while (true) {
+        std::vector<int> closed;
         std::tie(set, maximum) = makeDescriptorSet();
 
         // Block until one of the sockets is ready.
@@ -198,21 +198,56 @@ void ConnectionPool::run() {
                 fd, (struct sockaddr *) &incomingAddress, &len, SOCK_NONBLOCK
             );
             
-            if (incomingSocket == -1) {
-                if (errno == EAGAIN || errno == EWOULDBLOCK) {
-                    cout << "[INFO] Client aborted connection." << endl;
-                } else {
-                    cout << "[ERROR] " << formatError("Could not accept") << endl;
-                }
-            } else {
-                cout << "[INFO] " << "New connection from"
+            if (incomingSocket >= 0 && active.count(incomingSocket) == 0) {
+                cout << "[INFO] New connection from "
                      << inet_ntoa(incomingAddress.sin_addr) << ":"
                      << ntohs(incomingAddress.sin_port) << endl;
 
-                // active.insert(Socket(incomingSocket));
-            } 
+                active.emplace(incomingSocket, incomingSocket);
+
+                // Call the new connection handler if it has been set.
+                if (onConnection) {
+                    onConnection(active.at(incomingSocket));
+                }
+            } else if (incomingSocket >= 0) {
+                cout << "[INFO] Existing connection from "
+                     << inet_ntoa(incomingAddress.sin_addr) << ":"
+                     << ntohs(incomingAddress.sin_port)
+                     << ", ignoring." << endl;
+            } else if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                cout << "[INFO] Client aborted connection." << endl;
+            } else {
+                cout << "[ERROR] " << formatError("Could not accept") << endl;
+            }
         }
 
         // Check for incoming data on existing connections.
+        for (auto &connection : active) {
+            int cfd = connection.first;
+
+            if (FD_ISSET(cfd, &set)) {
+                try {
+                    // Check if the connection has been closed.
+                    char buffer[1];
+                    if (recv(cfd, buffer, 1, MSG_PEEK | MSG_DONTWAIT) == 0) {
+                        throw DisconnectException();
+                    }
+
+                    // Call the incoming data handler if it has been set.
+                    // It might raise a DisconnectException which will be caught.
+                    if (onIncoming) {
+                        onIncoming(connection.second);
+                    }
+                } catch (const DisconnectException& e) {
+                    closed.push_back(cfd);
+                }
+            }
+        }
+
+        // Remove the closed sockets from the active set.
+        // This will call the destructor of each removed Socket.
+        for (int cfd : closed) {
+            active.erase(cfd);
+        }
     }
 }

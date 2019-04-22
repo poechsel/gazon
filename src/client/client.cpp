@@ -33,6 +33,7 @@ std::tuple<std::string, uint16_t> parseArgs(int argc, char **argv) {
 void execCli(Cli *cli, int server_socket) {
     while (true) {
         std::string command = cli->readInput();
+        command += "\n";
 
         //TODO: Fix the send pattern
         send(server_socket, command.c_str(), command.size(), 0);
@@ -92,9 +93,6 @@ int main(int argc, char **argv) {
         if (connect(server_socket, (struct sockaddr *)&server_address, sizeof(server_address)) < 0) {
             throw NetworkingException("Connection failed");
         }
-
-        std::string message = "hello world";
-        send(server_socket, message.c_str(), message.size(), 0);
 
         Cli cli;
         pool.schedule(1, [&](){execCli(&cli, server_socket);});
