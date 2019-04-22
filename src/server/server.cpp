@@ -6,6 +6,7 @@
 #include <common/config.h>
 #include <common/command.h>
 #include <common/threadpool.h>
+#include <common/filesystem.h>
 
 #include <errno.h>
 #include <string.h>
@@ -15,12 +16,13 @@ using std::endl;
 
 int main() {
     try {
-        Config config = Config::fromFile("grass.conf");
-        Address address = Socket::parseAddress("127.0.0.1", config.port);
+        Config::fromFile("grass.conf");
+        Filesystem::scan(Config::base_directory);
+        Address address = Socket::parseAddress("127.0.0.1", Config::port);
         Socket server;
         server.bind(address);
 
-        ThreadPool<int> tpool();
+        ThreadPool<int> tpool(4);
         ConnectionPool cpool = server.listen();
 
         cpool.setOnConnection([](Socket& from) {
@@ -42,6 +44,7 @@ int main() {
         });
 
         cpool.run();
+        tpool.join();
     } catch (const ConfigException& e) {
         cout << "[ERROR] Config: " << e.what() << endl;
     } catch (const NetworkingException& e) {

@@ -4,6 +4,7 @@
 #include <fstream>
 #include <sstream>
 #include <cstring>
+#include <limits.h>
 
 
 ConfigException::ConfigException(std::string path, int line, std::string m):
@@ -26,28 +27,47 @@ const char* ConfigException::what() const throw(){
     return m_buffer;
 }
 
-void parseLine(std::string const &path, std::istringstream &iss, int nline, Config &config) {
+uint16_t Config::port = 0;
+std::string Config::base_directory = "";
+std::unordered_map<std::string, std::string> Config::m_users_pwd;
+
+bool Config::isUserPwdValid(const std::string user, const std::string pwd) {
+    if (m_users_pwd.find(user) == m_users_pwd.end())
+        return false;
+    return Config::m_users_pwd[user] == pwd;
+}
+void Config::setUserPwd(const std::string user, const std::string pwd) {
+    Config::m_users_pwd[user] = pwd;
+}
+
+
+void parseLine(std::string const &path, std::istringstream &iss, int nline) {
     std::string keyword;
 
     if (iss >> keyword) {
         if (keyword == "base") {
             std::string base_directory;
             if (iss >> base_directory) {
-                config.base_directory = base_directory;
+                char buf[PATH_MAX + 1]; 
+                char *res = realpath(base_directory.c_str(), buf);
+                if (res == 0) {
+                    throw ConfigException(path, nline, "invalid path");
+                }
+                Config::base_directory = std::string(res);
             } else {
                 throw ConfigException(path, nline, "`base` keyword expects one string");
             }
         } else if (keyword == "port") {
             uint16_t port;
             if (iss >> port) {
-                config.port = port;
+                Config::port = port;
             } else {
                 throw ConfigException(path, nline, "`port` keyword excepts one int");
             }
         } else if (keyword == "user") {
             std::string user, pwd;
             if (iss >> user >> pwd) {
-                config.users_pwd.push_back({user, pwd});
+                Config::setUserPwd(user, pwd);
             } else {
                 throw ConfigException(path, nline, "`user` keyword excepts two strings");
             }
@@ -59,21 +79,19 @@ void parseLine(std::string const &path, std::istringstream &iss, int nline, Conf
     }
 }
 
-Config Config::fromFile(std::string path) {
+void Config::fromFile(std::string path) {
     std::ifstream file;
     file.open(path);
 
     if (!file) {
         throw ConfigException(path, 0, "file " + path + " not found");
     } else {
-        Config config;
         std::string line;
         int nline = 0;
         while (std::getline(file, line)) {
             nline++;
             std::istringstream iss(line);
-            parseLine(path, iss, nline, config);
+            parseLine(path, iss, nline);
         }
-        return config;
     }
 }

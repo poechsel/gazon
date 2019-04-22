@@ -10,6 +10,7 @@ std::string Filesystem::m_temp_root = "/tmp/gazon/";
 void Filesystem::scan(const Path &path) {
     // thread safe
     std::unique_lock<std::mutex> lock(m_mutex);
+
     if (!path.isAbsolute()) {
         throw FilesystemException("Can only initialize from absolute paths");
     }

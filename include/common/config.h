@@ -4,6 +4,7 @@
 #include <string>
 #include <exception>
 #include <stdexcept>
+#include <unordered_map>
 
 
 struct ConfigException : public std::exception {
@@ -22,8 +23,12 @@ private:
 
 class Config {
 public:
-    static Config fromFile(std::string path);
-    uint16_t port;
-    std::string base_directory;
-    std::vector<std::pair<std::string, std::string>> users_pwd;
+    static void fromFile(std::string path);
+    static uint16_t port;
+    static std::string base_directory;
+
+    static bool isUserPwdValid(const std::string user, const std::string pwd);
+    static void setUserPwd(const std::string user, const std::string pwd);
+protected:
+    static std::unordered_map<std::string, std::string> m_users_pwd;
 };
