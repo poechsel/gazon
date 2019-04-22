@@ -40,7 +40,7 @@ CommandArgs convertAndTypecheckArguments(const Context &context, Specification c
             }
         } else if (spec[i] == ARG_PATH) {
             Path argpath(args[i]);
-            Path path = path + argpath;
+            Path path = context.path + argpath;
             if (path.attemptParentTraversal()) {
                 throw CommandException("detected attempt of directory traversal");
             }

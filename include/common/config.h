@@ -27,6 +27,7 @@ public:
     static uint16_t port;
     static std::string base_directory;
 
+    static bool userExists(const std::string user);
     static bool isUserPwdValid(const std::string user, const std::string pwd);
     static void setUserPwd(const std::string user, const std::string pwd);
 protected:

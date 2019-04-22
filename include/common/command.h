@@ -8,6 +8,7 @@
 #include <common/common.h>
 #include <common/socket.h>
 #include <common/path.h>
+#include <common/config.h>
 
 struct CommandException : public std::runtime_error {
 public:

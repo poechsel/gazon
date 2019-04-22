@@ -31,10 +31,11 @@ uint16_t Config::port = 0;
 std::string Config::base_directory = "";
 std::unordered_map<std::string, std::string> Config::m_users_pwd;
 
+bool Config::userExists(const std::string user) {
+    return (m_users_pwd.find(user) != m_users_pwd.end());
+}
 bool Config::isUserPwdValid(const std::string user, const std::string pwd) {
-    if (m_users_pwd.find(user) == m_users_pwd.end())
-        return false;
-    return Config::m_users_pwd[user] == pwd;
+    return Config::userExists(user) && Config::m_users_pwd[user] == pwd;
 }
 void Config::setUserPwd(const std::string user, const std::string pwd) {
     Config::m_users_pwd[user] = pwd;
