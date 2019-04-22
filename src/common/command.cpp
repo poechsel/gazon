@@ -25,7 +25,7 @@ std::tuple<Command*, CommandArgsString> commandFromInput(std::string const& inpu
     return make_tuple(command, command_args);
 }
 
-CommandArgs convertAndTypecheckArguments(Specification const& spec, CommandArgsString const& args) {
+CommandArgs convertAndTypecheckArguments(const Context &context, Specification const& spec, CommandArgsString const& args) {
     if (spec.size() != args.size())
         throw CommandException("number of arguments doesn't match");
     std::vector<CommandArg> converted; 
@@ -39,10 +39,8 @@ CommandArgs convertAndTypecheckArguments(Specification const& spec, CommandArgsS
                 throw CommandException("argument should be an int");
             }
         } else if (spec[i] == ARG_PATH) {
-            Path path(args[i]);
-            if (path.isAbsolute()) {
-                throw CommandException("we only accept relative paths");
-            }
+            Path argpath(args[i]);
+            Path path = path + argpath;
             if (path.attemptParentTraversal()) {
                 throw CommandException("detected attempt of directory traversal");
             }

@@ -90,6 +90,23 @@ public:
         return path;
     }
 
+    Path& operator+=(const Path &other) {
+        if (other.isAbsolute()) {
+            m_parts = other.m_parts;
+            m_string = other.m_string;
+        } else {
+            for (const auto part : other.m_parts)
+                m_parts.push_back(part);
+            m_string += "/" + other.m_string;
+        }
+        return *this;
+    }
+ 
+    friend Path operator+(Path path, const Path &other) {
+        path += other;
+        return path;
+    }
+
 private:
     std::vector<std::string> m_parts;
     bool m_is_absolute;

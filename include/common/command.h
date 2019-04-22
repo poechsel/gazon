@@ -94,7 +94,7 @@ private:
 std::tuple<Command*, CommandArgsString> commandFromInput(std::string const& line);
 
 /* Return true if the argument list matches the specification */
-CommandArgs convertAndTypecheckArguments(Specification const& spec, CommandArgsString const &args);
+CommandArgs convertAndTypecheckArguments(const Context &context, Specification const& spec, CommandArgsString const &args);
 
 // /* Evaluate the command express in line [line] */
 // void evaluateCommandFromLine(Context *context, std::string const& line, bool onServer = true);
