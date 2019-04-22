@@ -2,6 +2,13 @@
 
 #include <functional>
 
+/* Substitute for golang's defer.
+   Execute some code when we leave the current scope
+   (on exception / return...)
+
+   Usage: DEFER(codetoexecute);
+*/
+
 class Defer {
  public:
     std::function<void()> function;

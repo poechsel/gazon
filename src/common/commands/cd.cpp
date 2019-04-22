@@ -18,7 +18,7 @@ public:
     }
 
     Specification getSpecification() const {
-        return {ARG_STR};
+        return {ARG_PATH};
     }
 private:
 };
