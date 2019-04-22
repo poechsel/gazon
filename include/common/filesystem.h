@@ -69,7 +69,8 @@ public:
     /* Scan all folders with parent path and add them to our local database */
     static void scan(const Path &path);
 
-    static void debug(FilesystemEntry *entry, bool showHidden = false, int level=0);
+    static void debug();
+    static void unsafeDebug(FilesystemEntry *entry, bool showHidden = false, int level=0);
 
     /* Remove a path or directory */
     static void rm(const Path &path);
@@ -80,14 +81,14 @@ public:
     /* Create a file.
        Does not guarantee that until a matching call to [commit] the created
        file is physically store or even stored at the location pointed by [path] */
-    static File createFile(const Path &path);
+    static ProxyWriteFile createFile(const Path &path);
 
     /* Committing a file to the filesystem means that:
        - we close the file [file]
        - the file is present on the physicall file system
        - the file is added to the virtual filesystem
     */
-    static void commit(File &file);
+    static void commit(ProxyWriteFile &file);
 
     /* Get the unix group corresponding to uid [uid].
        Do some caching */
@@ -141,8 +142,12 @@ private:
     /* wrapper around the unix [remove] function */
     static int _removewrapper(const char *path, const struct stat *, int, struct FTW *);
 
+    static std::string newTempName();
+
     static std::mutex m_mutex;
     static FilesystemEntry m_root;
     static std::unordered_map<uid_t, std::string> m_users;
     static std::unordered_map<uid_t, std::string> m_groups;
+    static int m_temp_counter;
+    static std::string m_temp_root;
 };

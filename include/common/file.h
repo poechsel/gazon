@@ -21,7 +21,6 @@
 
 #include <common/path.h>
 
-
 struct FilesystemException : public std::runtime_error {
 public:
     FilesystemException(std::string m): std::runtime_error(m) {
@@ -45,7 +44,27 @@ public:
     void close();
     bool getLine(std::string &out);
     Path path;
-private:
+protected:
     FILE* m_file;
     std::string m_opened_type;
+};
+
+class ProxyWriteFile {
+public:
+    ProxyWriteFile(const std::string tempPath, const Path &realPath)
+        : tempPath(tempPath), path(realPath) {
+        m_file = fopen(tempPath.c_str(), "w");
+        if (!m_file)
+            throw FilesystemException(tempPath + "can't be opened");
+    }
+    ~ProxyWriteFile() {
+        close();
+    }
+    void open(const Path &path, std::string type);
+    void close();
+    void write(uint32_t n, const char *content);
+    std::string tempPath;
+    Path path;
+private:
+    FILE* m_file;
 };

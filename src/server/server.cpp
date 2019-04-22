@@ -125,69 +125,16 @@ int main() {
     // the same as the one in our environnement.
     std::locale::global(std::locale(""));
     ThreadPool<int> pool(4);
-
-
-    /*Regex("ab(c+d|e*f|gh)?|poi?j");
-    Regex("a{ 0, 4 }{ 1 }{ ,  3  }{ 5 , }");
-    Regex("ab?(abc|def(A{4, 9}|x)?){ 4 }");
-    Regex("ab{1,2}");
-    Regex("ab{0,2}");
-    Regex("ab{2,}");
-    Path test("/~/abc/../foo/./../");
-
-    Path path("/home/pierre/gazon");
-    Filesystem::scan(path);
-    Filesystem::mkdir_(Path("/home/pierre/gazon/temp"));
-    auto file = Filesystem::createFile(Path("/home/pierre/gazon/temp/foo"));
-    Filesystem::commit(file);
-    Filesystem::debug(&Filesystem::root);
-    auto file = Filesystem::createFile(Path("/home/pierre/gazon/temp/foo"));
-    Filesystem::commit(file);
-
-    Filesystem::debug(&Filesystem::root);
-    Filesystem::rm(Path("/home/pierre/gazon/temp"));
-    Filesystem::debug(&Filesystem::root);
-    
-    Grep grep;
-    auto start = std::chrono::steady_clock::now();
-    grep.run(path, "(a|b){4}");
-	auto end = std::chrono::steady_clock::now();
-    std::cout << "Elapsed time in nanoseconds : " 
-         << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count()
-              << " ns" << std::endl;
-
-    start = std::chrono::steady_clock::now();
-    std::cout << exec("grep -lsE \"(a|b){4}\" *") << "\n";
-	end = std::chrono::steady_clock::now();
-    std::cout << "Elapsed time in nanoseconds : " 
-              << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count()
-              << " ns" << std::endl;
-
-    return 0;
-
-    Ls ls;
-    ls.run(path);
-
-    std::cout << exec("ls -l ~") << "\n";
-
-    return 0;
-
-    auto re = Regex("(a{2,3}|b){,5}");
-    std::cout<<re.match("aaa")<<"\n";
-    std::cout<<re.match("abbaaa")<<"\n";
-    std::cout<<re.match("abbab")<<"\n";
-    return 0;
-    */
     /*
-  pool.schedule(1, [](){std::cout<<"foo\n"; sleep(3);});
-  pool.schedule(1, [](){std::cout<<"baz\n"; sleep(1);});
-  pool.schedule(20, [](){std::cout<<"bar\n"; sleep(1);});
-  for (int i = 0; i < 1; ++i)
+    pool.schedule(1, [](){std::cout<<"foo\n"; sleep(3);});
+    pool.schedule(1, [](){std::cout<<"baz\n"; sleep(1);});
     pool.schedule(20, [](){std::cout<<"bar\n"; sleep(1);});
-  sleep(5);
-  std::cout<<"joining threads\n";
-  pool.join();
-  return 0;
+    for (int i = 0; i < 1; ++i)
+        pool.schedule(20, [](){std::cout<<"bar\n"; sleep(1);});
+    sleep(5);
+    std::cout<<"joining threads\n";
+    pool.join();
+    return 0;
   */
     // Listen to the port and handle each connection
     int server_socket = -1;
@@ -209,4 +156,5 @@ int main() {
 
     if (server_socket >= 0)
         close(server_socket);
+    pool.join();
 }

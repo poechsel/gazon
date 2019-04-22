@@ -4,6 +4,8 @@ FilesystemEntry Filesystem::m_root;
 std::unordered_map<uid_t, std::string> Filesystem::m_users;
 std::unordered_map<uid_t, std::string> Filesystem::m_groups;
 std::mutex Filesystem::m_mutex;
+int Filesystem::m_temp_counter = 0;
+std::string Filesystem::m_temp_root = "/tmp/gazon/";
 
 void Filesystem::scan(const Path &path) {
     // thread safe
@@ -11,23 +13,32 @@ void Filesystem::scan(const Path &path) {
     if (!path.isAbsolute()) {
         throw FilesystemException("Can only initialize from absolute paths");
     }
+    m_temp_root = path.string() + "/.tmp/";
     // we are using the unsafe version as the callback will be called very frequently,
     // so we must avoid locking/unlocking to often
     ftw(path.string().c_str(), unsafeCallbackftw, 8);
+
+
+    if (::mkdir(m_temp_root.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) == -1 && errno != EEXIST ) {
+        throw FilesystemException("Can't create temp directory");
+    }
 }
 
-void Filesystem::debug(FilesystemEntry *entry, bool showHidden, int level) {
+void Filesystem::debug() {
     std::unique_lock<std::mutex> lock(m_mutex);
+    unsafeDebug(&m_root);
+}
+void Filesystem::unsafeDebug(FilesystemEntry *entry, bool showHidden, int level) {
     std::string indent = "";
     for (int i = 0; i < level; ++i)
         indent+="  ";
     for (auto it : entry->children) {
-        if (it.first[0] != '.' && !showHidden) {
+        if (it.first[0] != '.' || showHidden) {
             std::cout<<indent<<it.first
                      <<"("<<it.second->nRecChildren<<" "
                      <<it.second->size<<")"<<"\n";
             if (it.second->isFolder) {
-                debug(it.second, showHidden, level+1);
+                unsafeDebug(it.second, showHidden, level+1);
             }
         }
     }
@@ -42,23 +53,25 @@ void Filesystem::rm(const Path &path) {
 void Filesystem::mkdir(const Path &path) {
     // Thread safe because _getNumberMissingChild and _insertNode are threadsafe
     int number_node_to_add = _getNumberMissingChild(path);
-    if (number_node_to_add != 1) {
+    if (number_node_to_add == 0) {
+        throw FilesystemException("Directory already exists");
+    } else if (number_node_to_add > 1) {
         throw FilesystemException("Can't create "
                                   + path.string()
                                   + ": skipping part of the arborescence");
+    } else {
+        if (::mkdir(path.string().c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) == -1) {
+            throw FilesystemException(strerror(errno));
+        }
+        struct stat status;
+        if (stat(path.string().c_str(), &status) == -1) {
+            throw FilesystemException(strerror(errno));
+        }
+        _insertNode(path, &status, true);
     }
-    if (::mkdir(path.string().c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) == -1) {
-        throw FilesystemException(strerror(errno));
-    }
-    struct stat status;
-    if (stat(path.string().c_str(), &status) == -1) {
-        throw FilesystemException(strerror(errno));
-    }
-    _insertNode(path, &status, true);
 }
 
-// TODO: open a file in a temp dir
-File Filesystem::createFile(const Path &path) {
+ProxyWriteFile Filesystem::createFile(const Path &path) {
     // thread safe because _getNumberMissingChild is threadsafe
     int number_node_to_add = _getNumberMissingChild(path);
     // we can either overwrite a file or write a new one
@@ -68,10 +81,16 @@ File Filesystem::createFile(const Path &path) {
                                   + path.string()
                                   + ": skipping part of the arborescence");
     }
-    return File(path, "w");
+    return ProxyWriteFile(newTempName(), path);
 }
 
-void Filesystem::commit(File &file) {
+std::string Filesystem::newTempName() {
+    std::unique_lock<std::mutex> lock(m_mutex);
+    m_temp_counter++;
+    return m_temp_root + std::to_string(m_temp_counter);
+}
+
+void Filesystem::commit(ProxyWriteFile &file) {
     // threadsafe because _removeNodeFromVirtualFS and _insertNode are thread safe
     file.close();
     struct stat status;
@@ -186,6 +205,9 @@ int Filesystem::unsafeCallbackftw(const char *name, const struct stat *status, i
 
     std::string s = std::string(name);
     Path path(s);
+    // do not add our temp file
+    if (path.string() == m_temp_root)
+        return 0;
     return unsafeInsertNode(path, status, type == FTW_D);
 }
 

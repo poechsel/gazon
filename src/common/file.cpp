@@ -33,3 +33,19 @@ bool File::getLine(std::string &out) {
 }
 
 
+void ProxyWriteFile::close() {
+    if (m_file) {
+        fclose(m_file);
+        m_file = nullptr;
+        std::cout<<"renaming "<<tempPath<<" to "<<path.string()<<"\n";
+        if (rename(tempPath.c_str(), path.string().c_str()) != 0)
+            throw FilesystemException(strerror(errno));
+    }
+}
+
+void ProxyWriteFile::write(uint32_t n, const char* content) {
+    //TODO:
+    if (m_file) {
+        fprintf(m_file, content);
+    }
+}
