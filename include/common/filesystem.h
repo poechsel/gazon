@@ -1,6 +1,7 @@
 #pragma once
 
 #include <common/common.h>
+#include <common/config.h>
 
 #include <mutex>
 
@@ -149,5 +150,4 @@ private:
     static std::unordered_map<uid_t, std::string> m_users;
     static std::unordered_map<uid_t, std::string> m_groups;
     static int m_temp_counter;
-    static std::string m_temp_root;
 };

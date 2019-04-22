@@ -5,7 +5,6 @@ std::unordered_map<uid_t, std::string> Filesystem::m_users;
 std::unordered_map<uid_t, std::string> Filesystem::m_groups;
 std::mutex Filesystem::m_mutex;
 int Filesystem::m_temp_counter = 0;
-std::string Filesystem::m_temp_root = "/tmp/gazon/";
 
 void Filesystem::scan(const Path &path) {
     // thread safe
@@ -14,15 +13,9 @@ void Filesystem::scan(const Path &path) {
     if (!path.isAbsolute()) {
         throw FilesystemException("Can only initialize from absolute paths");
     }
-    m_temp_root = path.string() + "/.tmp/";
     // we are using the unsafe version as the callback will be called very frequently,
     // so we must avoid locking/unlocking to often
     ftw(path.string().c_str(), unsafeCallbackftw, 8);
-
-
-    if (::mkdir(m_temp_root.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) == -1 && errno != EEXIST ) {
-        throw FilesystemException("Can't create temp directory");
-    }
 }
 
 void Filesystem::debug() {
@@ -88,7 +81,7 @@ ProxyWriteFile Filesystem::createFile(const Path &path) {
 std::string Filesystem::newTempName() {
     std::unique_lock<std::mutex> lock(m_mutex);
     m_temp_counter++;
-    return m_temp_root + std::to_string(m_temp_counter);
+    return Config::temp_directory + std::to_string(m_temp_counter);
 }
 
 void Filesystem::commit(ProxyWriteFile &file) {
@@ -207,7 +200,7 @@ int Filesystem::unsafeCallbackftw(const char *name, const struct stat *status, i
     std::string s = std::string(name);
     Path path(s);
     // do not add our temp file
-    if (path.string() == m_temp_root)
+    if (path.string() == Config::temp_directory)
         return 0;
     return unsafeInsertNode(path, status, type == FTW_D);
 }

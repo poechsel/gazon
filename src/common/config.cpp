@@ -1,10 +1,13 @@
 #include <common/config.h>
+#include <common/common.h>
 
 #include <iostream>
 #include <fstream>
 #include <sstream>
 #include <cstring>
 #include <limits.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 
 ConfigException::ConfigException(std::string path, int line, std::string m):
@@ -29,6 +32,7 @@ const char* ConfigException::what() const throw(){
 
 uint16_t Config::port = 0;
 std::string Config::base_directory = "";
+std::string Config::temp_directory = "";
 std::unordered_map<std::string, std::string> Config::m_users_pwd;
 
 bool Config::userExists(const std::string user) {
@@ -49,12 +53,13 @@ void parseLine(std::string const &path, std::istringstream &iss, int nline) {
         if (keyword == "base") {
             std::string base_directory;
             if (iss >> base_directory) {
-                char buf[PATH_MAX + 1]; 
-                char *res = realpath(base_directory.c_str(), buf);
-                if (res == 0) {
-                    throw ConfigException(path, nline, "invalid path");
+
+                char buf[PATH_MAX + 1];
+                getcwd(buf, PATH_MAX);
+                Config::base_directory = std::string(buf) + "/" + base_directory;
+                if (::mkdir(Config::base_directory.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) == -1 && errno != EEXIST ) {
+                    throw ConfigException(path, nline, strerror(errno));
                 }
-                Config::base_directory = std::string(res);
             } else {
                 throw ConfigException(path, nline, "`base` keyword expects one string");
             }
@@ -93,6 +98,16 @@ void Config::fromFile(std::string path) {
             nline++;
             std::istringstream iss(line);
             parseLine(path, iss, nline);
+        }
+
+        if (Config::port == 0
+            || Config::base_directory == "") {
+            throw ConfigException(path, 0, "incorrect grass.conf");
+        }
+        Config::temp_directory = Config::base_directory + "/.tmp/";
+
+        if (::mkdir(Config::temp_directory.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) == -1 && errno != EEXIST ) {
+            throw ConfigException(path, 0, "Can't create temp directory");
         }
     }
 }
