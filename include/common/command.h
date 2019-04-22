@@ -32,14 +32,35 @@ typedef std::vector<CommandArg> CommandArgs;
 
 typedef std::vector<ArgTypes> Specification;
 
-// TODO(liautaud)
-class Context {};
+enum MiddlewareTypes {
+                      // a command can always be used
+                      MIDDLEWARE_NONE,
+                      // a command can only be used if a user is logged
+                      MIDDLEWARE_LOGGED,
+                      // a command can only be used when a user is attempting to log
+                      MIDDLEWARE_LOGGING,
+};
+
+class Context {
+public:
+    bool isLogged;
+    std::string user;
+    Path path;
+
+    Context(): isLogged(false), user(""), path("") {
+    }
+};
 
 class Command {
 public:
+    Command(MiddlewareTypes middlewareTypes):
+        m_middlewareTypes(middlewareTypes) {
+    }
     virtual void execute(Socket &socket, Context &context, const CommandArgs& args) = 0;
     virtual Specification getSpecification() const = 0;
     virtual ~Command(){}
+protected:
+    MiddlewareTypes m_middlewareTypes;
 };
 
 /* The code for the factory is strongly inspired by Nori */

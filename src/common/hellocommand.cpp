@@ -2,6 +2,8 @@
 
 class HelloCommand : public Command {
 public:
+    HelloCommand(): Command(MIDDLEWARE_NONE) {}
+
     void execute(Socket &socket, Context &context, const CommandArgs &args) {
         std::cout << "Hello on the server [" << args[0].get<std::string>() << "]\n";
 
