@@ -169,38 +169,40 @@ void Ls::run(Path path) {
     /* We start by storing in an array every element
        that will be part of the final output. We also
        keep track of the width of each column */
-    Filesystem::lock();
-    auto entry = Filesystem::unsafeGetEntryNode(path);
-    for (auto element : entry->children) {
-        if (!Filesystem::isHiddenFile(element.first) && element.second->status) {
-            struct stat* status = element.second->status;
-            char time_str[100];
-            char mode_str[11];
+    {
+        Filesystem::lock();
+        DEFER(Filesystem::unlock());
+        auto entry = Filesystem::unsafeGetEntryNode(path);
+        for (auto element : entry->children) {
+            if (!Filesystem::isHiddenFile(element.first) && element.second->status) {
+                struct stat* status = element.second->status;
+                char time_str[100];
+                char mode_str[11];
 
-            nblocks += status->st_blocks / 2;
+                nblocks += status->st_blocks / 2;
 
-            timeToStr(status->st_mtime, time_str, 100);
+                timeToStr(status->st_mtime, time_str, 100);
 
-            strmode(status->st_mode, mode_str);
+                strmode(status->st_mode, mode_str);
 
-            quotingExists |= needsQuoting(element.first);
+                quotingExists |= needsQuoting(element.first);
 
-            Lsdata filedata = {
-                               std::string(mode_str),
-                               std::string(time_str),
-                               Filesystem::unsafeGetGroup(status->st_uid),
-                               Filesystem::unsafeGetUser(status->st_uid),
-                               element.first,
-                               std::to_string(status->st_nlink),
-                               std::to_string(status->st_size)
-            };
+                Lsdata filedata = {
+                                   std::string(mode_str),
+                                   std::string(time_str),
+                                   Filesystem::unsafeGetGroup(status->st_uid),
+                                   Filesystem::unsafeGetUser(status->st_uid),
+                                   element.first,
+                                   std::to_string(status->st_nlink),
+                                   std::to_string(status->st_size)
+                };
 
-            length.update(filedata);
+                length.update(filedata);
 
-            files.push_back(filedata);
+                files.push_back(filedata);
+            }
         }
     }
-    Filesystem::unlock();
 
     /* Then, every file can be sorted according to its name.
        `strcoll` is a local-dependant string comparison.
