@@ -4,7 +4,7 @@ class LogoutCommand : public Command {
 public:
     LogoutCommand(): Command(MIDDLEWARE_LOGGED) {}
 
-    void execute(Socket &, Context &context, const CommandArgs &args) {
+    void execute(Socket &, Context &context, const CommandArgs &) {
         context.user = "";
         context.isLogged = false;
         context.path = Path("");
