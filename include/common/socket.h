@@ -1,7 +1,7 @@
 #pragma once
 
 #include <common/common.h>
-#include <set>
+#include <unordered_map>
 #include <sstream>
 #include <functional>
 
@@ -13,6 +13,12 @@ const int BUFFER_SIZE = 256;
 
 /// Forward declaration of ConnectionPool.
 class ConnectionPool;
+
+/// Exception triggered when a connection gets remotely closed.
+class DisconnectException : public std::runtime_error {
+public:
+    DisconnectException(): std::runtime_error("Connection closed by remote.") {}
+};
 
 /**
  * C++ abstraction over plain TCP sockets.
@@ -97,6 +103,16 @@ public:
      */
     ConnectionPool(int fd) : fd(fd) {}
 
+    /** Sets the onConnection handler. */
+    void setOnConnection(std::function<void(Socket&)> handler) {
+        onConnection = handler;
+    }
+
+    /** Sets the onIncoming handler. */
+    void setOnIncoming(std::function<void(Socket&)> handler) {
+        onIncoming = handler;
+    }
+
     /**
      * Run the event loop of the connection pool.
      * 
@@ -107,22 +123,22 @@ public:
      */
     void run();
 
-    /** Remove a socket from the connection pool. */
-    void remove(const Socket& socket);
-
 private:
-    int fd = -1;             ///< The descriptor of the listening socket.
-    std::set<Socket> active; ///< The set of active connections.
+    /// The descriptor of the listening socket.
+    int fd = -1;
+
+    /// The set of active connections.
+    std::unordered_map<int, Socket> active;
+
+    /// The handler used when a new connection is added to the pool.
+    std::function<void(Socket&)> onConnection;
+
+    /// The handler used when a connection has new data incoming.
+    std::function<void(Socket&)> onIncoming;
 
     /**
      * Create a file descriptor set for all the active connections.
      * Returns the maximum file descriptor as well, for use in select().
      */
     std::pair<fd_set, int> makeDescriptorSet();
-
-    /// The handler used when a new connection is added to the pool.
-    std::function<void(const Socket&)> onConnection;
-
-    /// The handler used when a connection has new data incoming.
-    std::function<void(const Socket&)> onIncoming;
 };
