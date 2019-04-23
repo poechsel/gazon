@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <errno.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <string.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
@@ -25,6 +26,12 @@ std::string formatError(const string& message) {
 Socket::Socket() {
     if ((fd = ::socket(AF_INET, SOCK_STREAM, 0)) < 0) {
         throw NetworkingException("Couldn't create a new socket.");
+    }
+
+    // This makes it simpler to restart the server after a crash.
+    int reuse = 1;
+    if (::setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (const char*) &reuse, sizeof(int)) < 0) {
+        throw NetworkingException("Couldn't set REUSEADDR on the socket.");
     }
 }
 
@@ -94,28 +101,36 @@ void Socket::write(const char* s) {
     }
 }
 
+/** Buffers data from the socket into the internal buffer. */
+ssize_t Socket::buffer() {
+    if (fd < 0) {
+        throw NetworkingException("Could not buffer: socket is uninitialized.");
+    }
+
+    char buffer[BUFFER_SIZE];
+    ssize_t bytesRead = ::recv(fd, &buffer, BUFFER_SIZE, 0);
+
+    if (bytesRead < 0) {
+        throw NetworkingException(formatError("Could not read"));
+    }
+
+    received.append(buffer, bytesRead);
+    return bytesRead;
+}
+
 /** Read a line from the socket. Blocks until EOL. **/
 Socket& Socket::operator>>(string& destination) {
     if (fd < 0) {
         throw NetworkingException("Could not read: socket is uninitialized.");
     }
 
-    char buffer[BUFFER_SIZE];
-    size_t breakPosition;
-    ssize_t bytesRead;
-
     // Repeatedly read from the socket until reading a line break.
+    size_t breakPosition;
     while ((breakPosition = received.find_first_of('\n')) == string::npos) {
-        bytesRead = ::read(fd, &buffer, BUFFER_SIZE);
-
-        if (bytesRead < 0) {
-            throw NetworkingException(formatError("Could not read"));
-        } else if (bytesRead == 0) {
-            // There are no more bytes to read (usually because of EOF).
+        // If there are no more bytes to read (usually because of EOF).
+        if (buffer() == 0) {
             break;
         }
-
-        received.append(buffer, bytesRead);
     }
 
     // If there is nothing left to read, the connection is closed.
@@ -177,6 +192,11 @@ void ConnectionPool::run() {
     fd_set set;
     int maximum;
 
+    // Make sure the listening socket is non-blocking, otherwise the call to
+    // accept() might block if a client closes the connection between the
+    // time of the select() and the time of the accept().
+    fcntl(fd, F_SETFL, O_NONBLOCK);
+
     while (true) {
         std::vector<int> closed;
         std::tie(set, maximum) = makeDescriptorSet();
@@ -188,31 +208,26 @@ void ConnectionPool::run() {
 
         // Check for new connections to accept.
         if (FD_ISSET(fd, &set)) {
-            struct sockaddr_in incomingAddress;
+            struct sockaddr_in incomingAddr;
             socklen_t len = sizeof(sockaddr_in);
 
-            // We use accept4() to make sure that the call does not block, which
-            // might happen if a client closes the connection between the time
-            // of the select() and the time of the accept().
-            int incomingSocket = accept4(
-                fd, (struct sockaddr *) &incomingAddress, &len, SOCK_NONBLOCK
-            );
+            int incomingFd = accept(fd, (struct sockaddr *) &incomingAddr, &len);
             
-            if (incomingSocket >= 0 && active.count(incomingSocket) == 0) {
+            if (incomingFd >= 0 && active.count(incomingFd) == 0) {
                 cout << "[INFO] New connection from "
-                     << inet_ntoa(incomingAddress.sin_addr) << ":"
-                     << ntohs(incomingAddress.sin_port) << endl;
+                     << inet_ntoa(incomingAddr.sin_addr) << ":"
+                     << ntohs(incomingAddr.sin_port) << "." << endl;
 
-                active.emplace(incomingSocket, incomingSocket);
+                active.emplace(incomingFd, incomingFd);
 
                 // Call the new connection handler if it has been set.
                 if (onConnection) {
-                    onConnection(active.at(incomingSocket));
+                    onConnection(active.at(incomingFd));
                 }
-            } else if (incomingSocket >= 0) {
+            } else if (incomingFd >= 0) {
                 cout << "[INFO] Existing connection from "
-                     << inet_ntoa(incomingAddress.sin_addr) << ":"
-                     << ntohs(incomingAddress.sin_port)
+                     << inet_ntoa(incomingAddr.sin_addr) << ":"
+                     << ntohs(incomingAddr.sin_port)
                      << ", ignoring." << endl;
             } else if (errno == EAGAIN || errno == EWOULDBLOCK) {
                 cout << "[INFO] Client aborted connection." << endl;
@@ -224,21 +239,27 @@ void ConnectionPool::run() {
         // Check for incoming data on existing connections.
         for (auto &connection : active) {
             int cfd = connection.first;
+            Socket &socket = connection.second;
 
             if (FD_ISSET(cfd, &set)) {
                 try {
-                    // Check if the connection has been closed.
-                    char buffer[1];
-                    if (recv(cfd, buffer, 1, MSG_PEEK | MSG_DONTWAIT) == 0) {
+                    // Store the incoming data in the socket's internal buffer,
+                    // and check if the connection has been closed.
+                    if (socket.buffer() == 0) {
                         throw DisconnectException();
                     }
 
                     // Call the incoming data handler if it has been set.
                     // It might raise a DisconnectException which will be caught.
                     if (onIncoming) {
-                        onIncoming(connection.second);
+                        onIncoming(socket);
                     }
                 } catch (const DisconnectException& e) {
+                    if (onClosing) {
+                        onClosing(socket);
+                    }
+
+                    cout << "[INFO] Client closed connection." << endl;
                     closed.push_back(cfd);
                 }
             }

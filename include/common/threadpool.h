@@ -10,6 +10,56 @@
 #include <thread>
 #include <vector>
 
+/* Generic queue */
+template <typename T>
+class Queue {
+public:
+    Queue(): m_pop_index(0), m_push_index(0){}
+
+    bool empty() const {
+        return m_push_index == 0 && m_pop_index == 0;
+    }
+
+    size_t size() const {
+        return m_push_index + m_pop_index;
+    }
+
+    T front() {
+        transvase();
+        return m_pop[m_pop_index - 1];
+    }
+
+    void push_back(T &&t) {
+        m_push[m_push_index++] = std::move(t);
+    }
+
+    T pop_front() {
+        transvase();
+        return m_pop[--m_pop_index];
+    }
+
+    T& operator[] (const int index) {
+        if (index < m_push_index) {
+            return m_push[index];
+        } else {
+            return m_pop[index - m_push_index];
+        }
+    }
+private:
+    int m_pop_index;
+    int m_push_index;
+    T m_pop[256];
+    T m_push[256];
+
+    void transvase() {
+        if (m_pop_index == 0) {
+            while (m_push_index > 0) {
+                m_pop[m_pop_index++] = m_push[--m_push_index];
+            }
+        }
+    }
+};
+
 /* Thread Safe queue. Elements inserted in it are tagged, and
  only one element of each tag can be extracted from it at a time.*/
 template <typename Tag, typename Element>
@@ -24,7 +74,7 @@ public:
 
     bool empty() {
         std::unique_lock<std::mutex> lock(m_mutex);
-        return m_size_queue == 0;
+        return m_queue.empty();
     }
 
     void done(const Tag &tag) {
@@ -35,7 +85,7 @@ public:
 
     void push(const Tag &tag, const Element &element) {
         std::unique_lock<std::mutex> lock(m_mutex);
-        m_queue[m_size_queue++] = {tag, element, false};
+        m_queue.push_back({tag, element, false});
         m_condition.notify_one();
     }
 
@@ -44,11 +94,9 @@ public:
         m_condition.wait(lock, [this]() {
                                    return unsafeCanSchedule() || !m_exists;
                                        });
-        if (!m_exists)
-            return false;
 
         bool status = false;
-        for (unsigned int i = 0; i < m_size_queue; ++i) {
+        for (unsigned int i = 0; i < m_queue.size(); ++i) {
             if (!m_queue[i].wasUsed
                 && m_tags_being_used.find(m_queue[i].tag) == m_tags_being_used.end()) {
                 status = true;
@@ -60,8 +108,8 @@ public:
             }
         }
 
-        while(m_size_queue > 0 && m_queue[m_size_queue - 1].wasUsed) {
-            m_size_queue--;
+        while(!m_queue.empty() && m_queue.front().wasUsed) {
+            m_queue.pop_front();
         }
         return status;
     }
@@ -74,8 +122,8 @@ public:
 
 private:
     bool unsafeCanSchedule() {
-        if (m_size_queue == 0) return false;
-        for (unsigned int i = 0; i < m_size_queue; ++i) {
+        if (m_queue.empty()) return false;
+        for (unsigned int i = 0; i < m_queue.size(); ++i) {
             if (!m_queue[i].wasUsed
                 && m_tags_being_used.find(m_queue[i].tag) == m_tags_being_used.end()) {
                 return true;
@@ -92,14 +140,13 @@ private:
     std::mutex m_mutex;
     std::condition_variable m_condition;
     bool m_exists;
-    uint32_t m_size_queue = 0;
-    TaggedElement m_queue[256];
+    Queue<TaggedElement> m_queue;
 };
 
 
 /* Thread pool.
-   When `join` is called every thread will finish their current work and
-   quit, even though jobs are remaining in the job queue.
+   When `join` is called every thread will finish consumming the current job queue and
+   then terminate.
 */
 template <typename Tag>
 class ThreadPool {
@@ -125,13 +172,15 @@ public:
 
 private:
     void worker() {
-        while (!m_pool_done) {
+        while (true) {
             Tag tag;
             std::function<void()> element;
             if (m_queue.waitPop(tag, element)) {
                 element();
                 m_queue.done(tag);
             }
+            if (m_queue.empty() && m_pool_done)
+                return;
         }
     }
     std::atomic_bool m_pool_done;
