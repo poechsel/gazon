@@ -94,8 +94,6 @@ public:
         m_condition.wait(lock, [this]() {
                                    return unsafeCanSchedule() || !m_exists;
                                        });
-        if (!m_exists)
-            return false;
 
         bool status = false;
         for (unsigned int i = 0; i < m_queue.size(); ++i) {
@@ -147,8 +145,8 @@ private:
 
 
 /* Thread pool.
-   When `join` is called every thread will finish their current work and
-   quit, even though jobs are remaining in the job queue.
+   When `join` is called every thread will finish consumming the current job queue and
+   then terminate.
 */
 template <typename Tag>
 class ThreadPool {
@@ -174,13 +172,15 @@ public:
 
 private:
     void worker() {
-        while (!m_pool_done) {
+        while (true) {
             Tag tag;
             std::function<void()> element;
             if (m_queue.waitPop(tag, element)) {
                 element();
                 m_queue.done(tag);
             }
+            if (m_queue.empty() && m_pool_done)
+                return;
         }
     }
     std::atomic_bool m_pool_done;
