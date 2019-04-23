@@ -8,6 +8,8 @@
 #include <ctype.h>
 #include <iostream>
 #include <string>
+#include <mutex>
+#include <unordered_map>
 
 using std::cout;
 using std::endl;
@@ -22,6 +24,7 @@ int main() {
 
     // The map of session contexts, one per open socket.
     std::unordered_map<int, Context> contexts;
+    std::mutex contexts_mutex;
 
     // The pool of threads in which to allocate the tasks.
     ThreadPool<int> tpool(4);
@@ -33,15 +36,15 @@ int main() {
         server.bind(address);
         ConnectionPool cpool = server.listen();
 
-        cpool.setOnConnection([](Socket&) {});
-
-        cpool.setOnIncoming([&](Socket& socket) {
-            tpool.schedule(socket.getFd(), [&socket, &contexts](){
+        cpool.setOnIncoming([&](Socket &socket) {
+            tpool.schedule(socket.getFd(), [&](){
                 Command *command = nullptr;
                 CommandArgsString argsString;
 
                 // In case of a miss, operator[] creates a new instance.
+                std::unique_lock<std::mutex> contexts_lock(contexts_mutex);
                 Context &context = contexts[socket.getFd()];
+                contexts_lock.unlock();
 
                 try {
                     // Receive the incoming packet, parse and check its arguments.
@@ -53,6 +56,8 @@ int main() {
                     );
 
                     command->execute(socket, context, args);
+                } catch (NetworkingException &e) {
+                    cout << "[ERROR] Networking: " << e.what() << endl;
                 } catch (std::exception &e) {
                     socket << "Error " << e.what() << endl;
                 }
@@ -61,7 +66,10 @@ int main() {
             });
         });
 
-        cpool.setOnClosing([](Socket&) {});
+        cpool.setOnClosing([&](Socket &socket) {
+            std::unique_lock<std::mutex> contexts_lock(contexts_mutex);
+            contexts.erase(socket.getFd());
+        });
 
         cpool.run();
     } catch (const ConfigException& e) {
