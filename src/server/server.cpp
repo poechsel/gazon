@@ -15,6 +15,9 @@ using std::cout;
 using std::endl;
 
 int main() {
+    // Important! Set the locale of our program to be
+    // the same as the one in our environnement.
+    std::locale::global(std::locale(""));
     try {
         Config::fromFile("grass.conf");
         Filesystem::scan(Config::base_directory);
@@ -37,7 +40,6 @@ int main() {
             cout << "Received: " << packet << endl;
 
             // TODO: dispatch command in a thread.
-
             // auto command = CommandFactory::create("hello");
             // command->execute(socket, context, {"www.google.com"});
             // delete command;
