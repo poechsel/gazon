@@ -59,6 +59,7 @@ public:
     }
     virtual void execute(Socket &socket, Context &context, const CommandArgs& args) = 0;
     virtual Specification getSpecification() const = 0;
+    bool middleware(Context &context) const;
     virtual ~Command(){}
 protected:
     MiddlewareTypes m_middlewareTypes;

@@ -7,6 +7,7 @@
 #include <unordered_map>
 #include <algorithm>
 #include <string>
+#include <common/defer.h>
 
 struct NetworkingException : public std::runtime_error {
 public:

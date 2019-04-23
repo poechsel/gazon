@@ -54,6 +54,27 @@ CommandArgs convertAndTypecheckArguments(const Context &context, Specification c
     return converted;
 }
 
+bool Command::middleware(Context &context) const {
+    if (m_middlewareTypes == MIDDLEWARE_NONE)
+        return true;
+
+    // While logging we want to switch back to a non logged/logging state
+    // if the middleware fails
+    if (m_middlewareTypes == MIDDLEWARE_LOGGING) {
+        if (context.user != "" and !context.isLogged)
+            return true;
+        context.isLogged = false;
+        context.user = "";
+        return false;
+    }
+
+    if (m_middlewareTypes == MIDDLEWARE_LOGGED) {
+        return context.isLogged;
+    }
+
+    return false;
+}
+
 // void evaluateCommandFromLine(Context *context, std::string const& line, bool onServer) {
 //     Command *command;
 //     CommandArgs command_args;

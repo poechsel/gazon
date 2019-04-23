@@ -13,6 +13,10 @@ using std::cout;
 using std::endl;
 
 int main() {
+    // Important! Set the locale of our program to be
+    // the same as the one in our environnement.
+    std::locale::global(std::locale(""));
+  
     // The entrypoint socket of the server.
     Socket server;
 

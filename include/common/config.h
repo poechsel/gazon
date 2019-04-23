@@ -26,6 +26,7 @@ public:
     static void fromFile(std::string path);
     static uint16_t port;
     static std::string base_directory;
+    static std::string temp_directory;
 
     static bool userExists(const std::string user);
     static bool isUserPwdValid(const std::string user, const std::string pwd);
