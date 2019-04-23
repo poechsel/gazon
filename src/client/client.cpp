@@ -65,7 +65,6 @@ int main(int argc, char **argv) {
         cout << "[ERROR] " << e.what() << endl;
     }
 
-    sleep(1); // FIXME(liautaud)
     // Wait until all the threads are finished executing.
     tpool.join();
 
