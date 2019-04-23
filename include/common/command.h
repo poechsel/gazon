@@ -46,9 +46,19 @@ class Context {
 public:
     bool isLogged;
     std::string user;
-    Path path;
+    Path relative_path;
 
-    Context(): isLogged(false), user(""), path("") {
+    Context(): isLogged(false), user(""), relative_path("") {
+    }
+
+    Path getAbsolutePath() const {
+        return Config::base_directory + relative_path;
+    }
+
+    void reset() {
+        user = "";
+        isLogged = false;
+        relative_path = Path("");
     }
 };
 

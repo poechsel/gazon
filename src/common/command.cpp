@@ -40,12 +40,21 @@ CommandArgs convertAndTypecheckArguments(const Context &context, Specification c
             }
         } else if (spec[i] == ARG_PATH) {
             Path argpath(args[i]);
-            Path path = context.path + argpath;
-            if (path.attemptParentTraversal()) {
-                throw CommandException("detected attempt of directory traversal");
+            /* The path passed as argument can be either relative or absolute, but
+               always to the base directory.
+               In any case, we add it to the relative path in the context. If
+               this argpath is relative, the behavior is as expected. If the argpath
+               is absolute, the concatenation operator will only return the argpath */
+            Path relative_path = context.relative_path + argpath;
+            /* Then we force the path to be relative to the base directory */
+            relative_path.setRelative();
+            if (relative_path.attemptParentTraversal()) {
+                throw CommandException("access denied!");
             }
-            // TODO: check if the path is not too long
-            arg.set<Path>(path);
+            if (relative_path.size() > 128) {
+                throw CommandException("the path is too long.");
+            }
+            arg.set<Path>(relative_path);
         } else {
             arg.set<std::string>(args[i]);
         }
@@ -74,19 +83,3 @@ bool Command::middleware(Context &context) const {
 
     return false;
 }
-
-// void evaluateCommandFromLine(Context *context, std::string const& line, bool onServer) {
-//     Command *command;
-//     CommandArgs command_args;
-//     std::tie(command, command_args) = commandFromInput(line);
-
-//     if (typecheckArguments(command->getSpecification(), command_args)) {
-//         if (onServer)
-//             command->executeServer(context, command_args);
-//         else
-//             command->executeClient(context, command_args);
-//     } else {
-//         // TODO: raise an exception
-//         std::cout<<"TYPECHECKING error\n";
-//     }
-// }

@@ -214,11 +214,11 @@ public:
     void execute(Socket &socket, Context &context, const CommandArgs &) {
 
         if (true) {
-            my_ls(context.path, socket);
+            my_ls(context.getAbsolutePath(), socket);
         } else {
             //TODO add sanitization
             socket << exec(std::string("ls -l ")
-                           + context.path.string()) << "\n";
+                           + context.getAbsolutePath().string()) << "\n";
         }
     }
 

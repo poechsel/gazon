@@ -11,11 +11,9 @@ public:
         } else {
             if (Config::isUserPwdValid(context.user, pwd)) {
                 context.isLogged = true;
-                context.path = Path("");
+                context.relative_path = Path("");
             } else {
-                context.user = "";
-                context.isLogged = false;
-                context.path = Path("");
+                context.reset();
                 throw CommandException("Unknown user/pwd pair");
             }
         }

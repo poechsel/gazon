@@ -9,7 +9,7 @@ public:
         if (Config::userExists(user)) {
             context.user = user;
             context.isLogged = false;
-            context.path = Path("");
+            context.relative_path = Path("");
         } else {
             throw CommandException("Unknown user: " + user);
         }

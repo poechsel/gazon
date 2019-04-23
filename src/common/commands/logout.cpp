@@ -7,7 +7,7 @@ public:
     void execute(Socket &, Context &context, const CommandArgs &) {
         context.user = "";
         context.isLogged = false;
-        context.path = Path("");
+        context.relative_path = Path("");
     }
 
     Specification getSpecification() const {

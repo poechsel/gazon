@@ -6,11 +6,11 @@ class GrepCommand : public Command {
 public:
     GrepCommand(): Command(MIDDLEWARE_LOGGED) {}
 
-    void my_grep(const Path &path, Regex &regex, FilesystemEntry *entry, std::vector<std::string> &matched_files) {
+    void my_grep(const Path &path, const Path &relative_path, Regex &regex, FilesystemEntry *entry, std::vector<std::string> &matched_files) {
         for (auto efile : entry->children) {
             if (Filesystem::isHiddenFile(efile.first)) {
             } else if (efile.second->isFolder) {
-                my_grep(path + efile.first, regex, efile.second, matched_files);
+                my_grep(path + efile.first, relative_path + efile.first, regex, efile.second, matched_files);
             } else {
                 Path cpath = path + efile.first;
                 File file = Filesystem::unsafeRead(cpath);
@@ -19,7 +19,7 @@ public:
                 do {
                     status = file.getLine(line);
                     if (regex.match(line)) {
-                        matched_files.push_back(cpath.string());
+                        matched_files.push_back((relative_path + efile.first).string());
                         break;
                     }
                     line = "";
@@ -41,8 +41,8 @@ public:
             {
                 Filesystem::lock();
                 DEFER(Filesystem::unlock());
-                auto entry = Filesystem::unsafeGetEntryNode(context.path);
-                my_grep(context.path, regex, entry, matched_files);
+                auto entry = Filesystem::unsafeGetEntryNode(context.getAbsolutePath());
+                my_grep(context.getAbsolutePath(), Path(""), regex, entry, matched_files);
             }
 
             std::sort(matched_files.begin(), matched_files.end(),
@@ -58,7 +58,7 @@ public:
             socket << exec(std::string("grep -Rl ")
                            + "--exclude-dir=" + Config::temp_directory + " "
                            + pattern + " "
-                           + context.path.string()) << "\n";
+                           + context.getAbsolutePath().string()) << "\n";
         }
     }
 

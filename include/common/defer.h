@@ -1,6 +1,7 @@
 #pragma once
 
 #include <functional>
+#include <iostream>
 
 /* Substitute for golang's defer.
    Execute some code when we leave the current scope

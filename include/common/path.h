@@ -32,7 +32,9 @@ public:
         for (const std::string cpart : parts) {
             if (cpart == "." || cpart == "") {
                 continue;
-            } else if (cpart == ".." && m_parts.size() > 0) {
+            } else if (cpart == ".."
+                       && m_parts.size() > 0
+                       && m_parts[m_parts.size() - 1] != "..") {
                 m_parts.pop_back();
             } else if (cpart == "~") {
                 m_parts.push_back("home");
@@ -42,11 +44,7 @@ public:
                 m_parts.push_back(cpart);
             }
         }
-
-        m_string = "";
-        for (unsigned int i = 0; i < m_parts.size(); ++i) {
-            m_string += ((i > 0 || m_is_absolute) ? "/" : "") + m_parts[i];
-        }
+        reconstructStringView();
     }
 
     std::string getHome() const {
@@ -79,12 +77,17 @@ public:
         return m_string;
     }
 
+    size_t length() const {
+        return m_string.size();
+    }
+
     Path& operator+=(const std::string &next_part) {
-        m_parts.push_back(next_part);
-        m_string += "/" + next_part;
+        if (addPathPart(next_part)) {
+            reconstructStringView();
+        }
         return *this;
     }
- 
+
     friend Path operator+(Path path, const std::string &next_part) {
         path += next_part;
         return path;
@@ -95,20 +98,49 @@ public:
             m_parts = other.m_parts;
             m_string = other.m_string;
         } else {
+            bool needReconstruction = false;
             for (const auto part : other.m_parts)
-                m_parts.push_back(part);
-            m_string += "/" + other.m_string;
+                needReconstruction |= addPathPart(part);
+            if (needReconstruction)
+                reconstructStringView();
         }
         return *this;
     }
- 
+
     friend Path operator+(Path path, const Path &other) {
         path += other;
         return path;
+    }
+
+    void setRelative() {
+        m_is_absolute = false;
     }
 
 private:
     std::vector<std::string> m_parts;
     bool m_is_absolute;
     std::string m_string;
+
+    void reconstructStringView() {
+        m_string = "";
+        for (unsigned int i = 0; i < m_parts.size(); ++i) {
+            m_string += ((i > 0 || m_is_absolute) ? "/" : "") + m_parts[i];
+        }
+    }
+
+    bool addPathPart(const std::string &next_part) {
+        if (next_part == ".."
+            && m_parts.size() > 0
+            && m_parts[m_parts.size() - 1] != "..") {
+            m_parts.pop_back();
+            return true;
+        } else if (next_part == ".") {
+            return false;
+        } else {
+            m_parts.push_back(next_part);
+            return true;
+        }
+    }
 };
+
+
