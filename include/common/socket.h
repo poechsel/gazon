@@ -36,9 +36,10 @@ public:
     Socket(int fd) : fd(fd) {} 
 
     /** Destroy the socket (closes the underlying TCP socket). */
-    ~Socket() {
-        close();
-    }
+    ~Socket() { close(); }
+
+    /** Return the underlying file descriptor of the socket. */
+    int getFd() { return fd; }
 
     /** Connect the socket to a remote address. */
     void connect(const Address& address);
@@ -48,7 +49,7 @@ public:
 
     /**
      * Listen for new connections on the socket.
-     * Returns a ConnectionPool to help keeping track of the connections.
+     * @return ConnectionPool to help keeping track of the connections.
      */
     ConnectionPool listen();
 
@@ -64,6 +65,12 @@ public:
     /** Write a C-style string to the socket. */
     void write(const char* s);
 
+    /**
+     * Buffer data from the socket into the internal buffer.
+     * @return Number of bytes that were buffered.
+     */
+    ssize_t buffer();
+
     /** Read a line from the socket. Blocks until EOL. **/
     Socket& operator>>(string& destination);
 
@@ -71,8 +78,7 @@ public:
      * Attempt to close the underlying TCP socket.
      * 
      * We don't check whether ::close() returns 0 since this method is called inside
-     * the destructor, and throwing exceptions inside the destructor is generally a
-     * very bad idea.
+     * the destructor, and throwing exceptions inside the destructor is a bad idea.
      */
     void close();
 
@@ -80,11 +86,9 @@ public:
     static Address parseAddress(const string& ip, unsigned int port);
 
 private:
-    friend class ConnectionPool;
     int fd = -1;     ///< The descriptor of the underlying TCP socket.
     string received; ///< An internal buffer for the received data.
 };
-
 
 /**
  * Collection of sockets connected to a local socket.
@@ -113,6 +117,11 @@ public:
         onIncoming = handler;
     }
 
+    /** Sets the onClosing handler. */
+    void setOnClosing(std::function<void(Socket&)> handler) {
+        onClosing = handler;
+    }
+
     /**
      * Run the event loop of the connection pool.
      * 
@@ -136,9 +145,12 @@ private:
     /// The handler used when a connection has new data incoming.
     std::function<void(Socket&)> onIncoming;
 
+    /// The handler used when a connection is closing.
+    std::function<void(Socket&)> onClosing;
+
     /**
      * Create a file descriptor set for all the active connections.
-     * Returns the maximum file descriptor as well, for use in select().
+     * @return Created fd_set and maximum file descriptor.
      */
     std::pair<fd_set, int> makeDescriptorSet();
 };
