@@ -98,7 +98,7 @@ int main(int argc, char **argv) {
         pool.schedule(1, [&](){execCli(&cli, server_socket);});
         pool.schedule(2, [&](){receiveCommunications(&cli, server_socket);});
         // just to make sure that the cli started
-        sleep(.5);
+        sleep(1);
         // finally wait for the threads to end
         pool.join();
     } catch (NetworkingException const &e) {
