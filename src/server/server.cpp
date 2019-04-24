@@ -37,7 +37,7 @@ int main() {
         ConnectionPool cpool = server.listen();
 
         cpool.setOnIncoming([&](Socket &socket) {
-            tpool.schedule(socket.getFd(), [&](){
+                                //tpool.schedule(socket.getFd(), [&](){
                 Command *command = nullptr;
                 CommandArgsString argsString;
 
@@ -63,7 +63,7 @@ int main() {
                 }
 
                 delete command;
-            });
+                //});
         });
 
         cpool.setOnClosing([&](Socket &socket) {

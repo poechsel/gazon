@@ -113,12 +113,12 @@ public:
     std::string getFormat(std::string path, bool quotingExists, bool needsQuoting) {
         if (quotingExists) {
             if (needsQuoting) {
-                return m_format + " '" + path + "'\n";
+                return m_format + " '" + path + "'";
             } else {
-                return m_format + "  " + path + "\n";
+                return m_format + "  " + path;
             }
         } else {
-            return m_format + " " + path + "\n";
+            return m_format + " " + path;
         }
     }
 
@@ -199,14 +199,13 @@ public:
 
         /* Finally, we can output everything */
         Lsformatstr formatstr(length);
-        char c_str[1024];
+        char c_str[1024] = {0};
         socket << "total " << std::to_string(nblocks) << "\n";
         for (auto lsdata : files) {
             // use quotingExists to be more compatible with the shell version
             // when it's executed from a fancy shell
             formatstr.dump(lsdata, 1024, c_str, false/*quotingExists*/);
-            // already includes the endline
-            socket << c_str;
+            socket << c_str << "\n";
         }
     }
 

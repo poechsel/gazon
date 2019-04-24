@@ -1,8 +1,6 @@
 #ifndef GRASS_H
 #define GRASS_H
 
-#define DEBUG true
-
 #include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
