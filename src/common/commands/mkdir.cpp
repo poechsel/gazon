@@ -5,9 +5,9 @@ class MkdirCommand : public Command {
 public:
     MkdirCommand(): Command(MIDDLEWARE_LOGGED) {}
 
-    void execute(Socket &, Context &, const CommandArgs &args) {
+    void execute(Socket &, Context &context, const CommandArgs &args) {
         Path new_directory = args[0].get<Path>();
-        Filesystem::mkdir(new_directory);
+        Filesystem::mkdir(context.getAbsolutePath() + new_directory);
     }
 
     Specification getSpecification() const {

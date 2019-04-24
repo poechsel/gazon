@@ -45,6 +45,8 @@ void Filesystem::rm(const Path &path) {
 }
 
 void Filesystem::mkdir(const Path &path) {
+    if (!path.isAbsolute())
+        exit(0);
     // Thread safe because _getNumberMissingChild and _insertNode are threadsafe
     int number_node_to_add = _getNumberMissingChild(path);
     if (number_node_to_add == 0) {
@@ -121,6 +123,8 @@ std::string Filesystem::unsafeGetGroup(uid_t uid) {
 }
 
 FilesystemEntry* Filesystem::unsafeGetEntryNode(const Path &path) {
+    if (!path.isAbsolute())
+        exit(0);
     FilesystemEntry *entry = &Filesystem::m_root;
     for (auto el : path) {
         if (entry->children.count(el) > 0) {
