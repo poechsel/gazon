@@ -201,10 +201,20 @@ public:
         Lsformatstr formatstr(length);
         char c_str[1024] = {0};
         socket << "total " << std::to_string(nblocks) << "\n";
-        for (auto lsdata : files) {
+        for (const auto &lsdata : files) {
             // use quotingExists to be more compatible with the shell version
             // when it's executed from a fancy shell
-            formatstr.dump(lsdata, 1024, c_str, false/*quotingExists*/);
+            std::string name = lsdata.name;
+            std::string format = formatstr.getFormat(name, false, false/*quotingExists, needsQuoting(name)*/);
+            snprintf(c_str, 1024,
+                     format.c_str(),
+                     lsdata.mode.c_str(),
+                     lsdata.nlink.c_str(),
+                     lsdata.user.c_str(),
+                     lsdata.group.c_str(),
+                     lsdata.size.c_str(),
+                     lsdata.date.c_str()
+                     );
             socket << c_str << "\n";
         }
     }
