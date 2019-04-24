@@ -176,6 +176,7 @@ int Filesystem::unsafeInsertNode(const Path &path, const struct stat *status, bo
         entry->isFolder = true;
         entry->size += size_file;
         entry->nRecChildren += 1;
+        entry->nSubFolders += isFolder;
         cpath += "/" + *it + "/";
     }
     entry = entry->get(*it);
@@ -185,10 +186,12 @@ int Filesystem::unsafeInsertNode(const Path &path, const struct stat *status, bo
         entry->isFolder = true;
         entry->size = 0;
         entry->nRecChildren = 0;
+        entry->nSubFolders = 0;
     } else {
         entry->isFolder = false;
         entry->size = size_file;
         entry->nRecChildren = 0;
+        entry->nSubFolders = 0;
     }
     return 0;
 }
@@ -215,6 +218,7 @@ void Filesystem::_removeNodeFromVirtualFS(const Path &path) {
     for (auto el : path) {
         entry->size -= node_to_delete->size;
         entry->nRecChildren -= node_to_delete->nRecChildren + 1;
+        entry->nSubFolders -= node_to_delete->nSubFolders + node_to_delete->isFolder;
         if (entry->children[el] == node_to_delete) {
             entry->children.erase(el);
             break;

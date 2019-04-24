@@ -48,8 +48,10 @@ public:
     // For folders: size of the folder (sum of all size of all chidren)
     size_t size;
 
-    // Count of all the children recursively
+    // Count of all the children recursively, including files and folders
     size_t nRecChildren;
+    // Count of all sub folders
+    size_t nSubFolders;
 
     bool isFolder;
 

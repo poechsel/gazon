@@ -30,10 +30,17 @@ public:
         }
     }
 
+    bool heuristic(const Path &absolute_path, std::string regex) {
+        Filesystem::lock();
+        DEFER(Filesystem::unlock());
+        auto entry = Filesystem::unsafeGetEntryNode(absolute_path);
+        return (regex.size() <= 8 && entry->nSubFolders == 0 && entry->nRecChildren <= 100 && entry->size <= 100 * 0xffff);
+    }
+
     void execute(Socket &socket, Context &context, const CommandArgs &args) {
 
         std::string pattern = args[0].get<std::string>();
-        if (true) {
+        if (heuristic(context.getAbsolutePath(), pattern)) {
             Regex regex(".*" + pattern + ".*");
 
             std::vector<std::string> matched_files;
