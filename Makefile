@@ -1,5 +1,5 @@
 CC := g++
-CFLAGS := -Wall -Wextra -g -fno-stack-protector -z execstack -lpthread -lreadline -std=c++11 
+CFLAGS := -Wall -Wextra -g -fno-stack-protector -z execstack -lpthread -std=c++11 
 SRCDIR := src
 BUILDDIR := bin
 
