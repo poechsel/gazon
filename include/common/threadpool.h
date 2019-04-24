@@ -80,12 +80,14 @@ public:
     void done(const Tag &tag) {
         std::unique_lock<std::mutex> lock(m_mutex);
         m_tags_being_used.erase(tag);
+        lock.unlock();
         m_condition.notify_one();
     }
 
     void push(const Tag &tag, const Element &element) {
         std::unique_lock<std::mutex> lock(m_mutex);
         m_queue.push_back({tag, element, false});
+        lock.unlock();
         m_condition.notify_one();
     }
 
@@ -117,6 +119,7 @@ public:
     void destroy() {
         std::lock_guard<std::mutex> lock(m_mutex);
         m_exists = false;
+        lock.unlock();
         m_condition.notify_all();
     }
 
