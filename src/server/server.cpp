@@ -36,6 +36,16 @@ int main() {
         server.bind(address);
         ConnectionPool cpool = server.listen();
 
+        cout << " .d88b.   8888b.  88888888  .d88b.  88888b.  "       << endl;
+        cout << "d88P\"88b     \"88b    d88P  d88\"\"88b 888 \"88b "  << endl;
+        cout << "888  888 .d888888   d88P   888  888 888  888 "       << endl;
+        cout << "Y88b 888 888  888  d88P    Y88..88P 888  888 "       << endl;
+        cout << " \"Y88888 \"Y888888 88888888  \"Y88P\"  888  888 "   << endl;
+        cout << "     888                                     "       << endl;
+        cout << "Y8b d88P   Listening on: 127.0.0.1:" << Config::port << endl;
+        cout << " \"Y88P\"    Basedir: " << Config::base_directory       << endl;
+        cout << endl;
+
         cpool.setOnPacket([&](Socket &socket, std::string packet) {
             cout << "[INFO] Received packet `" << packet << "`." << endl;
 

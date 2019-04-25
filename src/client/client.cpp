@@ -2,12 +2,13 @@
 #include <common/common.h>
 #include <common/threadpool.h>
 #include <common/socket.h>
-#include <client/cli.h>
 
 #include <iostream>
 #include <string>
 #include <tuple>
 #include <exception>
+#include <thread>
+#include <chrono>
 
 using std::cout;
 using std::endl;
@@ -36,8 +37,16 @@ std::pair<std::string, uint16_t> parseArgs(int argc, char **argv) {
     }
 }
 
+/** Print a prompt and read a line from cin. */
+std::string readInput() {
+    cout << "> " << std::flush;
+    std::string input;
+    std::getline(std::cin, input);
+    return input;
+}
+
+/** Start the client command-line. */
 int main(int argc, char **argv) {
-    Cli cli;
     Socket socket;
     ThreadPool<int, 2> tpool;
 
@@ -49,7 +58,8 @@ int main(int argc, char **argv) {
         // Read the input and send it continuously.
         tpool.schedule(1, [&](){
             while (true) {
-                socket << cli.readInput() << endl;
+                socket << readInput() << endl;
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
             }
         });
 
@@ -58,7 +68,7 @@ int main(int argc, char **argv) {
             while (true) {
                 std::string packet;
                 socket >> packet;
-                cli.showError(packet);
+                cout << packet << endl;
             }
         });
     } catch (const NetworkingException& e) {
