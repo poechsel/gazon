@@ -18,7 +18,7 @@ int main() {
     // Important! Set the locale of our program to be
     // the same as the one in our environnement.
     std::locale::global(std::locale(""));
-  
+
     // The entrypoint socket of the server.
     Socket server;
 
@@ -27,7 +27,7 @@ int main() {
     std::mutex contexts_mutex;
 
     // The pool of threads in which to allocate the tasks.
-    ThreadPool<int> tpool(4);
+    ThreadPool<int, 4> tpool;
 
     try {
         Config::fromFile("grass.conf");

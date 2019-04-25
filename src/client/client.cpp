@@ -39,7 +39,7 @@ std::pair<std::string, uint16_t> parseArgs(int argc, char **argv) {
 int main(int argc, char **argv) {
     Cli cli;
     Socket socket;
-    ThreadPool<int> tpool(2);
+    ThreadPool<int, 2> tpool;
 
     try {
         auto args = parseArgs(argc, argv);
@@ -48,7 +48,9 @@ int main(int argc, char **argv) {
 
         // Read the input and send it continuously.
         tpool.schedule(1, [&](){
-            while (true) socket << cli.readInput() << endl;
+            while (true) {
+                socket << cli.readInput() << endl;
+            }
         });
 
         // Read from the socket and print continuously.

@@ -10,34 +10,40 @@
 #include <thread>
 #include <vector>
 
-/* Generic queue */
+/** A generic queue for values of type T. */
 template <typename T>
 class Queue {
 public:
     Queue(): m_pop_index(0), m_push_index(0){}
 
+    /** Return whether the queue is empty. */
     bool empty() const {
         return m_push_index == 0 && m_pop_index == 0;
     }
 
+    /** Return the number of items in the queue. */
     size_t size() const {
         return m_push_index + m_pop_index;
     }
 
+    /** Return the front item in the queue. */
     T front() {
-        transvase();
+        spill();
         return m_pop[m_pop_index - 1];
     }
 
+    /** Add an item to the back of the queue. */
     void push_back(T &&t) {
         m_push[m_push_index++] = std::move(t);
     }
 
+    /** Remove the front item from the queue and return it. */
     T pop_front() {
-        transvase();
+        spill();
         return m_pop[--m_pop_index];
     }
 
+    /** Return the n-th item in the queue. */
     T& operator[] (const int index) {
         if (index < m_push_index) {
             return m_push[index];
@@ -51,7 +57,8 @@ private:
     T m_pop[256];
     T m_push[256];
 
-    void transvase() {
+    /** Spill the items of m_push into m_pop in reverse order. */
+    void spill() {
         if (m_pop_index == 0) {
             while (m_push_index > 0) {
                 m_pop[m_pop_index++] = m_push[--m_push_index];
@@ -60,133 +67,157 @@ private:
     }
 };
 
-/* Thread Safe queue. Elements inserted in it are tagged, and
- only one element of each tag can be extracted from it at a time.*/
-template <typename Tag, typename Element>
-class ThreadQueueGroup {
+/**
+ * A generic thread-safe queue for tagged jobs.
+ *
+ * Items are inserted with tags, providing several guarantees:
+ * - Items with the same tag will be popped in insertion order.
+ * - Only one item with a given tag can be popped until a call to done().
+ * - Only one worker thread can pop items of a given tag.
+ */
+template <typename Tag, typename Element, int n>
+class ThreadPoolQueue {
 public:
-    ThreadQueueGroup(): m_exists(true) {
-    }
+    ThreadPoolQueue() : stopped(false) {}
 
-    ~ThreadQueueGroup() {
-        destroy();
-    }
-
-    bool empty() {
-        std::unique_lock<std::mutex> lock(m_mutex);
-        return m_queue.empty();
-    }
-
-    void done(const Tag &tag) {
-        std::unique_lock<std::mutex> lock(m_mutex);
-        m_tags_being_used.erase(tag);
-        lock.unlock();
-        m_condition.notify_one();
-    }
-
-    void push(const Tag &tag, const Element &element) {
-        std::unique_lock<std::mutex> lock(m_mutex);
-        m_queue.push_back({tag, element, false});
-        lock.unlock();
-        m_condition.notify_one();
-    }
-
-    bool waitPop(Tag &tag, Element &element) {
-        std::unique_lock<std::mutex> lock(m_mutex);
-        m_condition.wait(lock, [this]() {
-                                   return unsafeCanSchedule() || !m_exists;
-                                       });
-
-        bool status = false;
-        for (unsigned int i = 0; i < m_queue.size(); ++i) {
-            if (!m_queue[i].wasUsed
-                && m_tags_being_used.find(m_queue[i].tag) == m_tags_being_used.end()) {
-                status = true;
-                m_queue[i].wasUsed = true;
-                m_tags_being_used.insert(m_queue[i].tag);
-                element = std::move(m_queue[i].element);
-                tag = m_queue[i].tag;
-                break;
-            }
+    /**
+     * Push a new item onto the queue.
+     *
+     * A worker thread will be assigned to the tag arbitrarily, and all the
+     * subsequent pushes of the same tag will be assigned to the same worker.
+     *
+     * @param tag   The tag of the item that is pushed, will be moved.
+     * @param item  The item to be pushed, will be moved.
+     */
+    void push(const Tag &tag, const Element &item) {
+        std::unique_lock<std::mutex> mapLock(mapMutex);
+        if (map.count(tag) == 0) {
+            lastMapped = (lastMapped + 1) % n;
+            map[tag] = lastMapped;
         }
+        unsigned int index = map[tag];
+        mapLock.unlock();
 
-        while(!m_queue.empty() && m_queue.front().wasUsed) {
-            m_queue.pop_front();
-        }
-        return status;
+        auto &subqueue = subqueues[index];
+        std::unique_lock<std::mutex> queueLock(subqueue.mutex);
+        subqueue.queue.push_back(std::move(std::make_pair(tag, item)));
+        queueLock.unlock();
+        subqueue.condition.notify_one();
     }
 
-    void destroy() {
-        std::lock_guard<std::mutex> lock(m_mutex);
-        m_exists = false;
-        lock.unlock();
-        m_condition.notify_all();
+    /**
+     * Blocks until an item can be popped by a given thread.
+     *
+     * @param index The identity of the thread which wants to pop the item.
+     * @param tag   A reference to the destination of the popped tag.
+     * @param item  A reference to the destination of the popped item.
+     * @return      Whether an item was actually popped.
+     */
+    bool blockUntilPop(unsigned int index, Tag &tag, Element &item) {
+        auto &subqueue = subqueues[index];
+        std::unique_lock<std::mutex> queueLock(subqueue.mutex);
+        subqueue.condition.wait(queueLock, [&]() {
+            return !subqueue.queue.empty() || stopped;
+        });
+
+        if (!subqueue.queue.empty()) {
+            std::tie(tag, item) = subqueue.queue.pop_front();
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    /** Stops all the current blockUntilPop operations. */
+    void stop() {
+        stopped = true;
+
+        for (auto &subqueue : subqueues) {
+            subqueue.condition.notify_all();
+        }
     }
 
 private:
-    bool unsafeCanSchedule() {
-        if (m_queue.empty()) return false;
-        for (unsigned int i = 0; i < m_queue.size(); ++i) {
-            if (!m_queue[i].wasUsed
-                && m_tags_being_used.find(m_queue[i].tag) == m_tags_being_used.end()) {
-                return true;
-            }
-        }
-        return false;
-    }
-    struct TaggedElement {
-        Tag tag;
-        Element element;
-        bool wasUsed;
+    using Item = std::pair<Tag, Element>;
+
+    /// The subqueue of a single worker thread.
+    struct Subqueue {
+        Queue<Item> queue;
+        std::mutex mutex;
+        std::condition_variable condition;
     };
-    std::set<Tag> m_tags_being_used;
-    std::mutex m_mutex;
-    std::condition_variable m_condition;
-    bool m_exists;
-    Queue<TaggedElement> m_queue;
+
+    /// A subqueue for each worker thread.
+    std::array<Subqueue, n> subqueues;
+
+    /// A mapping of tags to their assigned worker threads.
+    std::unordered_map<Tag, unsigned int> map;
+
+    /// The last thread that was assigned a tag.
+    unsigned int lastMapped;
+
+    /// A mutex to protect map and lastMapped.
+    std::mutex mapMutex;
+
+    /// Whether the queue is stopped.
+    std::atomic_bool stopped;
 };
 
 
-/* Thread pool.
-   When `join` is called every thread will finish consumming the current job queue and
-   then terminate.
-*/
-template <typename Tag>
+/**
+ * A thread pool for tagged jobs.
+ *
+ * It provides the following guarantees:
+ * - All jobs with a given tag will be executed in insertion order.
+ * - All jobs with a given tag will be executed on the same thread.
+ * - All scheduled jobs will finish before join() returns.
+ */
+template <typename Tag, int n>
 class ThreadPool {
 public:
-    ThreadPool(unsigned int n): m_pool_done(false) {
+    ThreadPool(): queue() {
         for (unsigned int i = 0; i < n; ++i) {
-            m_threads.emplace_back(&ThreadPool::worker, this);
+            threads.emplace_back(&ThreadPool::worker, this, i);
         }
     }
 
-    void schedule(Tag tag, std::function<void()> task) {
-        m_queue.push(tag, task);
+    /** Schedule a new tagged job onto the pool. */
+    void schedule(Tag tag, std::function<void()> job) {
+        queue.push(tag, job);
     }
 
+    /** Stop the thread pool and waits for the completion of all jobs. */
     void join() {
-        m_pool_done = true;
-        m_queue.destroy();
-        for (auto &thread : m_threads) {
-            if (thread.joinable())
+        queue.stop();
+        for (auto &thread : threads) {
+            if (thread.joinable()) {
                 thread.join();
+            }
         }
     }
 
 private:
-    void worker() {
+    std::vector<std::thread> threads;
+    ThreadPoolQueue<Tag, std::function<void()>, n> queue;
+
+    /**
+     * Consume jobs from the queue and execute them.
+     *
+     * This function is run by every thread in the pool, and will only return
+     * when the queue has been stopped and all jobs have finished running.
+     *
+     * @param index The index of the worker thread.
+     */
+    void worker(unsigned int index) {
         while (true) {
             Tag tag;
-            std::function<void()> element;
-            if (m_queue.waitPop(tag, element)) {
-                element();
-                m_queue.done(tag);
-            }
-            if (m_queue.empty() && m_pool_done)
+            std::function<void()> job;
+
+            if (queue.blockUntilPop(index, tag, job)) {
+                job();
+            } else {
                 return;
+            }
         }
     }
-    std::atomic_bool m_pool_done;
-    std::vector<std::thread> m_threads;
-    ThreadQueueGroup<Tag, std::function<void()>> m_queue;
 };
