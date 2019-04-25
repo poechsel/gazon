@@ -36,8 +36,10 @@ int main() {
         server.bind(address);
         ConnectionPool cpool = server.listen();
 
-        cpool.setOnIncoming([&](Socket &socket) {
-                                //tpool.schedule(socket.getFd(), [&](){
+        cpool.setOnPacket([&](Socket &socket, std::string packet) {
+            cout << "[INFO] Received packet `" << packet << "`." << endl;
+
+            tpool.schedule(socket.getFd(), [&, packet](){
                 Command *command = nullptr;
                 CommandArgsString argsString;
 
@@ -47,23 +49,26 @@ int main() {
                 contexts_lock.unlock();
 
                 try {
-                    // Receive the incoming packet, parse and check its arguments.
-                    std::string packet;
-                    socket >> packet;
+                    // Parse the packet and type-check its arguments.
                     std::tie(command, argsString) = commandFromInput(packet);
                     CommandArgs args = convertAndTypecheckArguments(
                         context, command->getSpecification(), argsString
                     );
 
                     command->execute(socket, context, args);
-                } catch (NetworkingException &e) {
+                } catch (const DisconnectException &e) {
+                    // DisconnectExceptions should be forwarded.
+                    throw e;
+                } catch (const NetworkingException &e) {
+                    // NetworkingExceptions should only be logged.
                     cout << "[ERROR] Networking: " << e.what() << endl;
-                } catch (std::exception &e) {
+                } catch (const CommandException &e) {
+                    // CommandExceptions should be sent back to the client.
                     socket << "Error " << e.what() << endl;
                 }
 
                 delete command;
-                //});
+            });
         });
 
         cpool.setOnClosing([&](Socket &socket) {
@@ -72,10 +77,8 @@ int main() {
         });
 
         cpool.run();
-    } catch (const ConfigException& e) {
-        cout << "[ERROR] Config: " << e.what() << endl;
-    } catch (const NetworkingException& e) {
-        cout << "[ERROR] Networking: " << e.what() << endl;
+    } catch (const std::exception& e) {
+        cout << "[ERROR] " << e.what() << endl;
     }
 
     // Wait until all the threads are finished executing.

@@ -33,7 +33,7 @@ public:
     Socket();
 
     /** Create a socket from an existing file descriptor. */
-    Socket(int fd) : fd(fd) {} 
+    Socket(int fd) : fd(fd) {}
 
     /** Destroy the socket (closes the underlying TCP socket). */
     ~Socket() { close(); }
@@ -71,12 +71,18 @@ public:
      */
     ssize_t buffer();
 
-    /** Read a line from the socket. Blocks until EOL. **/
+    /**
+     * Try to extract a line from the socket's buffer.
+     * @return Whether destination was actually rewritten with a line.
+     */
+    bool getLine(string& destination);
+
+    /** Read a line from the socket. Blocks until EOL. */
     Socket& operator>>(string& destination);
 
     /**
      * Attempt to close the underlying TCP socket.
-     * 
+     *
      * We don't check whether ::close() returns 0 since this method is called inside
      * the destructor, and throwing exceptions inside the destructor is a bad idea.
      */
@@ -92,7 +98,7 @@ private:
 
 /**
  * Collection of sockets connected to a local socket.
- * 
+ *
  * This is used for TCP servers which listen() for incoming connections on a
  * local socket. This abstraction takes care of cleaning up closed sockets,
  * as well as select()-ing sockets which are ready to be read from.
@@ -101,7 +107,7 @@ class ConnectionPool {
 public:
     /**
      * Create a connection pool from an existing file descriptor.
-     * 
+     *
      * The file descriptor must reference a valid TCP socket, which must be
      * in the listening state (i.e. listen() must have been called before).
      */
@@ -113,8 +119,8 @@ public:
     }
 
     /** Sets the onIncoming handler. */
-    void setOnIncoming(std::function<void(Socket&)> handler) {
-        onIncoming = handler;
+    void setOnPacket(std::function<void(Socket&, const std::string&)> handler) {
+        onPacket = handler;
     }
 
     /** Sets the onClosing handler. */
@@ -124,7 +130,7 @@ public:
 
     /**
      * Run the event loop of the connection pool.
-     * 
+     *
      * This call is blocking: it starts an infinite loop which waits for
      * either a new connection to accept(), or a packet to receive. Note
      * that there is no guarantee about the actual implementation of the
@@ -142,8 +148,8 @@ private:
     /// The handler used when a new connection is added to the pool.
     std::function<void(Socket&)> onConnection;
 
-    /// The handler used when a connection has new data incoming.
-    std::function<void(Socket&)> onIncoming;
+    /// The handler used when a connection has a new packet incoming.
+    std::function<void(Socket&, const std::string&)> onPacket;
 
     /// The handler used when a connection is closing.
     std::function<void(Socket&)> onClosing;

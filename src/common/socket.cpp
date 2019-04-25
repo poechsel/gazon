@@ -118,29 +118,34 @@ ssize_t Socket::buffer() {
     return bytesRead;
 }
 
-/** Read a line from the socket. Blocks until EOL. **/
+/** Try to extract a line from the socket's buffer. */
+bool Socket::getLine(string& destination) {
+    size_t breakPosition = received.find_first_of('\n');
+    if (breakPosition == string::npos) {
+        return false;
+    }
+
+    // Extract the first line, and keep the rest in the buffer.
+    destination = received.substr(0, breakPosition);
+    received.erase(0, breakPosition + 1);
+    return true;
+}
+
+/** Read a line from the socket. Blocks until EOL. */
 Socket& Socket::operator>>(string& destination) {
     if (fd < 0) {
         throw NetworkingException("Could not read: socket is uninitialized.");
     }
 
     // Repeatedly read from the socket until reading a line break.
-    size_t breakPosition;
-    while ((breakPosition = received.find_first_of('\n')) == string::npos) {
-        // If there are no more bytes to read (usually because of EOF).
+    while (!getLine(destination)) {
         if (buffer() == 0) {
-            break;
+            // If there are no more bytes to read (usually because of EOF),
+            // we will never be able to read a full line again.
+            throw DisconnectException();
         }
     }
 
-    // If there is nothing left to read, the connection is closed.
-    if (received.length() == 0) {
-        throw DisconnectException();
-    }
-
-    // Extract the first line, and keep the rest in a buffer.
-    destination = received.substr(0, breakPosition);
-    received.erase(0, breakPosition + 1);
     return *this;
 }
 
@@ -157,7 +162,7 @@ Address Socket::parseAddress(const string& ip, unsigned int port) {
     Address address;
     address.sin_family = AF_INET;
     address.sin_port = htons(port);
-    
+
     switch (::inet_pton(AF_INET, ip.c_str(), &address.sin_addr)) {
         case -1:
             throw NetworkingException("Couldn't parse address (EAFNOSUPPORT).");
@@ -203,7 +208,7 @@ void ConnectionPool::run() {
 
         // Block until one of the sockets is ready.
         if (select(maximum + 1, &set, 0, 0, 0) < 0) {
-            throw NetworkingException(formatError("Could not select"));
+            cout << "[ERROR] " << formatError("Could not select") << endl;
         }
 
         // Check for new connections to accept.
@@ -212,7 +217,7 @@ void ConnectionPool::run() {
             socklen_t len = sizeof(sockaddr_in);
 
             int incomingFd = accept(fd, (struct sockaddr *) &incomingAddr, &len);
-            
+
             if (incomingFd >= 0 && active.count(incomingFd) == 0) {
                 cout << "[INFO] New connection from "
                      << inet_ntoa(incomingAddr.sin_addr) << ":"
@@ -249,10 +254,11 @@ void ConnectionPool::run() {
                         throw DisconnectException();
                     }
 
-                    // Call the incoming data handler if it has been set.
-                    // It might raise a DisconnectException which will be caught.
-                    if (onIncoming) {
-                        onIncoming(socket);
+                    // Check if the socket contains a full packet, in which case we
+                    // call the packet handler. It might raise a DisconnectException.
+                    std::string packet;
+                    if (socket.getLine(packet) && onPacket) {
+                        onPacket(socket, std::move(packet));
                     }
                 } catch (const DisconnectException& e) {
                     if (onClosing) {
