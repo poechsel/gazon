@@ -111,6 +111,7 @@ int main(int argc, char **argv) {
     try {
         args = parseArgs(argc, argv);
         socket.connect(Socket::parseAddress(args.serverIp, args.serverPort));
+        socket.useThrowOnClose();
 
         // If an infile and outfile were passed, run in testing mode.
         if (args.inputStream.is_open() && args.outputStream.is_open()) {

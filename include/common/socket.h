@@ -14,12 +14,6 @@ const int BUFFER_SIZE = 256;
 /// Forward declaration of ConnectionPool.
 class ConnectionPool;
 
-/// Exception triggered when a connection gets remotely closed.
-class DisconnectException : public std::runtime_error {
-public:
-    DisconnectException(): std::runtime_error("Connection closed by remote.") {}
-};
-
 /**
  * C++ abstraction over plain TCP sockets.
  *
@@ -36,10 +30,13 @@ public:
     Socket(int fd) : fd(fd) {}
 
     /** Destroy the socket (closes the underlying TCP socket). */
-    ~Socket() { close(); }
+    ~Socket() { closeFd(); }
 
     /** Return the underlying file descriptor of the socket. */
     int getFd() { return fd; }
+
+    /** Return whether the socket is dirty. */
+    bool isDirty() { return dirty; }
 
     /** Connect the socket to a remote address. */
     void connect(const Address& address);
@@ -81,19 +78,37 @@ public:
     Socket& operator>>(string& destination);
 
     /**
-     * Attempt to close the underlying TCP socket.
+     * Close the socket.
      *
-     * We don't check whether ::close() returns 0 since this method is called inside
-     * the destructor, and throwing exceptions inside the destructor is a bad idea.
+     * - In normal mode, calls closeFd() to close the underlying file descriptor.
+     * - In deffered mode, only marks the socket as "dirty". The actual call to
+     *   closeFd() will only be ade inside the destructor.
      */
     void close();
+
+    /** Enable the deffered close mode on the socket. */
+    void useDeferredClose();
+
+    /** Throw an exception after closing the socket. */
+    void useThrowOnClose();
 
     /** Convert a string and port to an IPv4 address. */
     static Address parseAddress(const string& ip, unsigned int port);
 
 private:
-    int fd = -1;     ///< The descriptor of the underlying TCP socket.
-    string received; ///< An internal buffer for the received data.
+    int fd = -1;                ///< The descriptor of the underlying TCP socket.
+    string received;            ///< An internal buffer for the received data.
+    bool deferredClose = false; ///< Whether to use deferred closing mode.
+    bool throwOnClose = false;  ///< Whether to use throw when closing.
+    bool dirty = false;         ///< Whether the socket is dirty.
+
+    /**
+     * Attempt to close the underlying file descriptor.
+     *
+     * We don't check whether ::close() returns 0 since this method is called inside
+     * the destructor, and throwing exceptions inside the destructor is a bad idea.
+     */
+    void closeFd();
 };
 
 /**

@@ -66,9 +66,6 @@ int main() {
                     );
 
                     command->execute(socket, context, args);
-                } catch (const DisconnectException &e) {
-                    // DisconnectExceptions should be forwarded.
-                    throw e;
                 } catch (const NetworkingException &e) {
                     // NetworkingExceptions should only be logged.
                     cout << "[ERROR] Networking: " << e.what() << endl;

@@ -8,6 +8,7 @@
 #include <fcntl.h>
 #include <string.h>
 #include <arpa/inet.h>
+#include <sys/time.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/select.h>
@@ -142,19 +143,43 @@ Socket& Socket::operator>>(string& destination) {
         if (buffer() == 0) {
             // If there are no more bytes to read (usually because of EOF),
             // we will never be able to read a full line again.
-            throw DisconnectException();
+            close();
+            break;
         }
     }
 
     return *this;
 }
 
-/** Attempt to close the underlying TCP socket. */
+/** Close the socket. */
 void Socket::close() {
+    if (deferredClose) {
+        dirty = true;
+    } else if (throwOnClose) {
+        closeFd();
+        throw NetworkingException("Connection closed by remote.");
+    } else {
+        closeFd();
+    }
+}
+
+/** Attempt to close the underlying file descriptor. */
+void Socket::closeFd() {
+    dirty = true;
     if (fd >= 0) {
         ::close(fd);
         fd = -1;
     }
+}
+
+/** Enable the deffered close mode on the socket. */
+void Socket::useDeferredClose() {
+    deferredClose = true;
+}
+
+/** Throw an exception after closing the socket. */
+void Socket::useThrowOnClose() {
+    throwOnClose = true;
 }
 
 /** Convert a string and port to an IPv4 address. */
@@ -203,11 +228,11 @@ void ConnectionPool::run() {
     fcntl(fd, F_SETFL, O_NONBLOCK);
 
     while (true) {
-        std::vector<int> closed;
         std::tie(set, maximum) = makeDescriptorSet();
 
         // Block until one of the sockets is ready.
-        if (select(maximum + 1, &set, 0, 0, 0) < 0) {
+        struct timeval timeout = {0, 100000};
+        if (select(maximum + 1, &set, 0, 0, &timeout) < 0) {
             cout << "[ERROR] " << formatError("Could not select") << endl;
         }
 
@@ -224,6 +249,10 @@ void ConnectionPool::run() {
                      << ntohs(incomingAddr.sin_port) << "." << endl;
 
                 active.emplace(incomingFd, incomingFd);
+
+                // Important: use deferred closing mode for the socket because
+                // we might run into issues with multi-threading otherwise.
+                active.at(incomingFd).useDeferredClose();
 
                 // Call the new connection handler if it has been set.
                 if (onConnection) {
@@ -247,34 +276,35 @@ void ConnectionPool::run() {
             Socket &socket = connection.second;
 
             if (FD_ISSET(cfd, &set)) {
-                try {
-                    // Store the incoming data in the socket's internal buffer,
-                    // and check if the connection has been closed.
-                    if (socket.buffer() == 0) {
-                        throw DisconnectException();
-                    }
+                // Store the incoming data in the socket's internal buffer,
+                // and check if the connection has been closed.
+                if (socket.buffer() == 0) {
+                    socket.close();
+                    continue;
+                }
 
-                    // Check if the socket contains a full packet, in which case we
-                    // call the packet handler. It might raise a DisconnectException.
-                    std::string packet;
-                    if (socket.getLine(packet) && onPacket) {
-                        onPacket(socket, std::move(packet));
-                    }
-                } catch (const DisconnectException& e) {
-                    if (onClosing) {
-                        onClosing(socket);
-                    }
-
-                    cout << "[INFO] Client closed connection." << endl;
-                    closed.push_back(cfd);
+                // Check if the socket contains a full packet, and call the
+                // registered packet handler in that case.
+                std::string packet;
+                if (socket.getLine(packet) && onPacket) {
+                    onPacket(socket, std::move(packet));
                 }
             }
         }
 
-        // Remove the closed sockets from the active set.
-        // This will call the destructor of each removed Socket.
-        for (int cfd : closed) {
-            active.erase(cfd);
+        // Clean up all the sockets that were closed since the last iteration.
+        std::vector<int> closed;
+        for (auto &connection : active) {
+            if (connection.second.isDirty()) {
+                if (onClosing) {
+                    onClosing(connection.second);
+                }
+
+                cout << "[INFO] Client closed connection." << endl;
+                closed.push_back(connection.first);
+            }
         }
+
+        for (int cfd : closed) active.erase(cfd);
     }
 }
