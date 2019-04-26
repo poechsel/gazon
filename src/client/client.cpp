@@ -4,6 +4,7 @@
 #include <common/socket.h>
 
 #include <iostream>
+#include <fstream>
 #include <string>
 #include <tuple>
 #include <exception>
@@ -12,28 +13,42 @@
 
 using std::cout;
 using std::endl;
+using Pool = ThreadPool<int, 2>;
 
-/**
- * Parse the command-line arguments.
- * @return The IP address and port number of the server.
- */
-std::pair<std::string, uint16_t> parseArgs(int argc, char **argv) {
-    if (argc < 3) {
-        cout << "Usage:" << std::endl;
-        cout << argv[0] << " server-ip server-port" << std::endl;
-        throw std::invalid_argument("");
-    } else {
-        std::string server_ip(argv[1]);
-        std::string server_port_s(argv[2]);
+struct CliArguments {
+    std::string serverIp;
+    uint16_t serverPort;
+    std::ifstream inputStream;
+    std::ofstream outputStream;    
+};
 
-        int server_port_i = std::stoi(server_port_s);
-        uint16_t server_port = 0;
-        if (0 <= server_port_i && server_port_i <= static_cast<int>(UINT16_MAX)) {
-            server_port = static_cast<uint16_t>(server_port_i);
-            return make_pair(server_ip, server_port);
-        } else {
-            throw std::invalid_argument("Port number is too big");
-        }
+/** Parse the command-line arguments. */
+CliArguments parseArgs(int argc, char **argv) {
+    CliArguments args;
+    int serverPort;
+
+    switch (argc) {
+        case 5: // Automated testing mode.
+            args.inputStream.open(argv[3]);
+            args.outputStream.open(argv[4]);
+
+            if (!args.inputStream.is_open())
+                throw std::invalid_argument("Input file is invalid.");
+            if (!args.outputStream.is_open())
+                throw std::invalid_argument("Output file is invalid.");
+            [[gnu::fallthrough]];
+        case 3: // Interactive mode.
+            args.serverIp = argv[1];
+            serverPort = std::stoi(std::string(argv[2]));
+            if (serverPort < 0 || serverPort > static_cast<int>(UINT16_MAX))
+                throw std::invalid_argument("Port number is too big.");
+            args.serverPort = static_cast<uint16_t>(serverPort);
+            return args;
+            break;
+        default:
+            cout << "Usage: " << argv[0] << " server-ip server-port";
+            cout << " [in-file out-file]" << endl;
+            throw std::invalid_argument("Incorrect arguments.");
     }
 }
 
@@ -45,32 +60,64 @@ std::string readInput() {
     return input;
 }
 
-/** Start the client command-line. */
+/** Run the client in interactive mode. */
+void runInteractive(CliArguments&, Socket &socket, Pool &pool) {
+    // Read the input and send it continuously.
+    pool.schedule(1, [&](){
+        while (true) {
+            socket << readInput() << endl;
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+    });
+
+    // Read from the socket and print continuously.
+    pool.schedule(2, [&](){
+        std::string packet;
+        while (true) {
+            socket >> packet;
+            cout << packet << endl;
+        }
+    });
+}
+
+/** Run the client in automated testing mode. */
+void runTesting(CliArguments& args, Socket &socket, Pool &pool) {
+    // Read the input and send it continuously.
+    pool.schedule(1, [&](){
+        std::string line;
+        while (std::getline(args.inputStream, line)) {
+            cout << "[INFO] Sending packet `" << line << "`." << endl;
+            socket << line << endl;
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+    });
+
+    // Read from the socket and print continuously.
+    pool.schedule(2, [&](){
+        std::string packet;
+        while (true) {
+            socket >> packet;
+            args.outputStream << packet << endl << std::flush;
+        }
+    });
+}
+
+/** Start the client. */
 int main(int argc, char **argv) {
+    CliArguments args;
     Socket socket;
-    ThreadPool<int, 2> tpool;
+    Pool pool;
 
     try {
-        auto args = parseArgs(argc, argv);
-        Address address = Socket::parseAddress(args.first, args.second);
-        socket.connect(address);
+        args = parseArgs(argc, argv);
+        socket.connect(Socket::parseAddress(args.serverIp, args.serverPort));
 
-        // Read the input and send it continuously.
-        tpool.schedule(1, [&](){
-            while (true) {
-                socket << readInput() << endl;
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
-            }
-        });
-
-        // Read from the socket and print continuously.
-        tpool.schedule(2, [&](){
-            while (true) {
-                std::string packet;
-                socket >> packet;
-                cout << packet << endl;
-            }
-        });
+        // If an infile and outfile were passed, run in testing mode.
+        if (args.inputStream.is_open() && args.outputStream.is_open()) {
+            runTesting(args, socket, pool);
+        } else {
+            runInteractive(args, socket, pool);
+        }
     } catch (const NetworkingException& e) {
         cout << "[ERROR] Networking: " << e.what() << endl;
     } catch (const std::exception& e) {
@@ -78,7 +125,7 @@ int main(int argc, char **argv) {
     }
 
     // Wait until all the threads are finished executing.
-    tpool.join();
+    pool.join();
 
     return 0;
 }
