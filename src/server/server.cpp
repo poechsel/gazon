@@ -65,6 +65,10 @@ int main() {
                         context, command->getSpecification(), argsString
                     );
 
+                    if (!command->middleware(context)) {
+                        throw CommandException("Unauthorized command.");
+                    }
+
                     command->execute(socket, context, args);
                 } catch (const NetworkingException &e) {
                     // NetworkingExceptions should only be logged.

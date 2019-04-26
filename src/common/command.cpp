@@ -28,7 +28,7 @@ std::tuple<Command*, CommandArgsString> commandFromInput(std::string const& inpu
 CommandArgs convertAndTypecheckArguments(const Context &context, Specification const& spec, CommandArgsString const& args) {
     if (spec.size() != args.size())
         throw CommandException("number of arguments doesn't match");
-    std::vector<CommandArg> converted; 
+    std::vector<CommandArg> converted;
     for (uint i = 0; i < spec.size(); ++i) {
         CommandArg arg;
         if (spec[i] == ARG_INT) {
@@ -63,23 +63,29 @@ CommandArgs convertAndTypecheckArguments(const Context &context, Specification c
     return converted;
 }
 
+/** Checks whether the command can proceed to execution. */
 bool Command::middleware(Context &context) const {
-    if (m_middlewareTypes == MIDDLEWARE_NONE)
-        return true;
-
-    // While logging we want to switch back to a non logged/logging state
-    // if the middleware fails
-    if (m_middlewareTypes == MIDDLEWARE_LOGGING) {
-        if (context.user != "" and !context.isLogged)
+    switch (m_middlewareTypes) {
+        /// No additional checks needed.
+        case MIDDLEWARE_NONE:
             return true;
-        context.isLogged = false;
-        context.user = "";
-        return false;
-    }
 
-    if (m_middlewareTypes == MIDDLEWARE_LOGGED) {
-        return context.isLogged;
-    }
+        /// User should have filled their username.
+        case MIDDLEWARE_LOGGING:
+            if (context.user != "" && !context.isLogged) {
+                return true;
+            } else {
+                context.isLogged = false;
+                context.user = "";
+                return false;
+            }
 
-    return false;
+        /// User should be logged in.
+        case MIDDLEWARE_LOGGED:
+            return context.isLogged;
+
+        /// Unknown middleware.
+        default:
+            return false;
+    }
 }
