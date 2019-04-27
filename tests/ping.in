@@ -1,0 +1,7 @@
+login u1
+pass p1
+date
+ping 8.8.8.8
+ping epfl.ch
+ping nonexistingaddress
+date 

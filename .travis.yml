@@ -1,22 +1,24 @@
 language: cpp
-dist: trusty
-sudo: false
 os: linux
-compiler: gcc-7
 notifications:
   email: true
+python:
+    - "3.4"
 
 addons:
   apt:
     sources:
-      - ubuntu-toolchain-r-test
-      - kubuntu-backports
+      - deadsnakes # source required so it finds the package definition below
     packages:
-      - g++-7
+      - python3.5
+      - python3-pip
 
 cache:
   directories:
     - build
+
+before_install:
+    - pip3 install --user pytest
 
 install:
   - echo ${PATH}
@@ -25,9 +27,7 @@ install:
   - ${CXX} -v
   - mkdir -p "${TRAVIS_BUILD_DIR}/build"
 
-# Incremental builds script from:
-# https://blog.esciencecenter.nl/travis-caching-and-incremental-builds-6518b89ee889
-# https://github.com/roofit-dev/root/blob/2cc63b8b3d0a7c3acca4381e1bc5a7ef3e01a94c/.travis.yml
 script:
   - make -j2
+  - python3 -m pytest
 
