@@ -15,42 +15,37 @@ using std::cout;
 using std::endl;
 using Pool = ThreadPool<int, 2>;
 
-struct CliArguments {
+class CliArguments {
+public:
     std::string serverIp;
     uint16_t serverPort;
     std::ifstream inputStream;
-    std::ofstream outputStream;    
-};
+    std::ofstream outputStream;
 
-/** Parse the command-line arguments. */
-CliArguments parseArgs(int argc, char **argv) {
-    CliArguments args;
-    int serverPort;
-
-    switch (argc) {
-        case 5: // Automated testing mode.
-            args.inputStream.open(argv[3]);
-            args.outputStream.open(argv[4]);
-
-            if (!args.inputStream.is_open())
-                throw std::invalid_argument("Input file is invalid.");
-            if (!args.outputStream.is_open())
-                throw std::invalid_argument("Output file is invalid.");
-            [[gnu::fallthrough]];
-        case 3: // Interactive mode.
-            args.serverIp = argv[1];
-            serverPort = std::stoi(std::string(argv[2]));
-            if (serverPort < 0 || serverPort > static_cast<int>(UINT16_MAX))
-                throw std::invalid_argument("Port number is too big.");
-            args.serverPort = static_cast<uint16_t>(serverPort);
-            return args;
-            break;
-        default:
+    /** Parse the command-line arguments. */
+    CliArguments(int argc, char **argv) {
+        if (!(argc == 3 || argc == 5)) {
             cout << "Usage: " << argv[0] << " server-ip server-port";
             cout << " [in-file out-file]" << endl;
             throw std::invalid_argument("Incorrect arguments.");
+        }
+
+        if (argc == 5) {
+            inputStream.open(argv[3]);
+            outputStream.open(argv[4]);
+
+            if (!inputStream.is_open())
+                throw std::invalid_argument("Input file is invalid.");
+            if (!outputStream.is_open())
+                throw std::invalid_argument("Output file is invalid.");
+        }
+        serverIp = argv[1];
+        int tempServerPort = std::stoi(std::string(argv[2]));
+        if (tempServerPort < 0 || tempServerPort > static_cast<int>(UINT16_MAX))
+            throw std::invalid_argument("Port number is too big.");
+        serverPort = static_cast<uint16_t>(tempServerPort);
     }
-}
+};
 
 /** Print a prompt and read a line from cin. */
 std::string readInput() {
@@ -104,12 +99,11 @@ void runTesting(CliArguments& args, Socket &socket, Pool &pool) {
 
 /** Start the client. */
 int main(int argc, char **argv) {
-    CliArguments args;
     Socket socket;
     Pool pool;
 
     try {
-        args = parseArgs(argc, argv);
+        CliArguments args(argc, argv);
         socket.connect(Socket::parseAddress(args.serverIp, args.serverPort));
         socket.useThrowOnClose();
 
