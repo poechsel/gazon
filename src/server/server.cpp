@@ -66,7 +66,7 @@ int main() {
                     );
 
                     if (!command->middleware(context)) {
-                        throw CommandException("Unauthorized command.");
+                        throw CommandException("access denied.");
                     }
 
                     command->execute(socket, context, args);

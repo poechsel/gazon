@@ -12,5 +12,5 @@ PING epfl.ch (<*>) 56(84) bytes of data.
 --- epfl.ch ping statistics ---
 1 packets transmitted, 1 received, 0% packet loss, time <*>ms
 rtt min/avg/max/mdev = <*>ms
-ping: nonexistingaddress: Name or service not known
+ping: <*>nonexistingaddress<*>
 <line>Tue Nov 5 16:00:15 CEST 2019 

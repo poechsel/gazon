@@ -2,7 +2,7 @@ total 0
 cd: dir1: No such file or directory
 total 0
 total 4
-drwxr-xr-x 2 root root 4096 <*> dir2
+drwxr-xr-x 2 <*> <*> 4096 <*> dir2
 total 0
 total 4
-drwxr-xr-x 2 root root 4096 <*> dir1
+drwxr-xr-x 2 <*> <*> 4096 <*> dir1

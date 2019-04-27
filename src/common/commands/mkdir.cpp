@@ -7,7 +7,7 @@ public:
 
     void execute(Socket &, Context &context, const CommandArgs &args) {
         Path new_directory = args[0].get<Path>();
-        Filesystem::mkdir(context.getAbsolutePath() + new_directory);
+        Filesystem::mkdir(Config::base_directory + new_directory);
     }
 
     Specification getSpecification() const {

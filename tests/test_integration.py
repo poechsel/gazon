@@ -44,6 +44,8 @@ def boilerplate(confs):
             outlines = outfile.readlines()
             outlines = [line for line in outlines if len(line.strip())]
 
+        print(templines)
+        print(outlines)
         assert(len(templines) == len(outlines))
         for line_temp, line_out in zip(templines, outlines):
             assert(compare_line(line_temp, line_out))
@@ -58,10 +60,10 @@ def test_directories(server):
     boilerplate("tests/directories/directory")
 
 @pytest.mark.users({"u1" : "p1", "u2": "p2", "u3": "p3"})
-def test_mutliclients(server):
+def test_multiclients(server):
     boilerplate([("tests/multiclients/client1", 0),
-                 ("tests/mutliclients/client2", 1),
-                 ("tests/mutliclients/client2", 2)])
+                 ("tests/multiclients/client2", 1),
+                 ("tests/multiclients/client3", 2)])
 
 @pytest.mark.users({"u1" : "p1"})
 @pytest.mark.fs("tests/grep/fs.model")

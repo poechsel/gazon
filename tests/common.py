@@ -1,5 +1,5 @@
 import pytest
-from shutil import copyfile
+from shutil import copyfile, rmtree
 from tempfile import mkdtemp
 import subprocess
 import re, os
@@ -69,7 +69,9 @@ def server(request):
     copyfile("grass.conf", "grass.back")
     copyfile("grass.conf", "grass.back02")
 
-    basedir = mkdtemp()
+    rmtree('temp_dir_tests', ignore_errors=True)
+    basedir = "temp_dir_tests"
+    #basedir = mkdtemp()
     users = request.node.get_closest_marker("users").args[0]
 
     fs_marker = request.node.get_closest_marker("fs")

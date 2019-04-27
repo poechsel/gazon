@@ -51,6 +51,7 @@ public:
 
     /// Whether the user is currently logged in.
     bool isLogged = false;
+    bool isLoggingIn = false;
 
     /// The username that the user is logged in as.
     std::string user = "";
@@ -68,11 +69,12 @@ public:
     /** Try to log the user in, throw a CommandException otherwise. */
     void login(const std::string &username, const std::string &password) {
         if (!Config::isUserPwdValid(username, password)) {
-            throw CommandException("Invalid credentials.");
+            throw CommandException("Authentication failed.");
         }
 
         user = username;
         isLogged = true;
+        isLoggingIn = false;
         relativePath = Path("");
 
         // If the entry doesn't exist, it will be zero-initialized.
@@ -89,6 +91,7 @@ public:
         std::string username = user;
         user = "";
         isLogged = false;
+        isLoggingIn = false;
         relativePath = Path("");
 
         std::unique_lock<std::mutex> lock(loggedMutex);

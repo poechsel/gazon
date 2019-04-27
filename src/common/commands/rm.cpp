@@ -7,8 +7,7 @@ public:
 
     void execute(Socket &, Context &context, const CommandArgs &args) {
         Path to_remove = args[0].get<Path>();
-        std::cout<<to_remove.string()<<"\n";
-        Filesystem::rm(context.getAbsolutePath() + to_remove);
+        Filesystem::rm(Config::base_directory + to_remove);
     }
 
     Specification getSpecification() const {
