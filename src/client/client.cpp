@@ -23,7 +23,7 @@ public:
     std::ofstream outputStream;
 
     /** Parse the command-line arguments. */
-    CliArguments(int argc, char **argv) {
+    void parseArgs(int argc, char **argv) {
         if (!(argc == 3 || argc == 5)) {
             cout << "Usage: " << argv[0] << " server-ip server-port";
             cout << " [in-file out-file]" << endl;
@@ -81,6 +81,7 @@ void runTesting(CliArguments& args, Socket &socket, Pool &pool) {
     pool.schedule(1, [&](){
         std::string line;
         while (std::getline(args.inputStream, line)) {
+            std::cout<<"trying\n";
             cout << "[INFO] Sending packet `" << line << "`." << endl;
             socket << line << endl;
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -101,9 +102,10 @@ void runTesting(CliArguments& args, Socket &socket, Pool &pool) {
 int main(int argc, char **argv) {
     Socket socket;
     Pool pool;
+    CliArguments args;
 
     try {
-        CliArguments args(argc, argv);
+        args.parseArgs(argc, argv);
         socket.connect(Socket::parseAddress(args.serverIp, args.serverPort));
         socket.useThrowOnClose();
 

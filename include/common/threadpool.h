@@ -78,7 +78,7 @@ private:
 template <typename Tag, typename Element, int n>
 class ThreadPoolQueue {
 public:
-    ThreadPoolQueue() : stopped(false) {}
+    ThreadPoolQueue() : lastMapped(0), stopped(false) {}
 
     /**
      * Push a new item onto the queue.

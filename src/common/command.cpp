@@ -23,7 +23,8 @@ std::tuple<Command*, CommandArgsString> commandFromInput(std::string const& inpu
         uint end = skipArg(start, input);
         std::string arg = input.substr(start, end - start);
         start = end;
-        command_args.push_back(arg);
+        if (arg.size() > 0)
+            command_args.push_back(arg);
     }
     return make_tuple(command, command_args);
 }
