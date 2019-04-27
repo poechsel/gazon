@@ -11,7 +11,7 @@ public:
     }
 
     Specification getSpecification() const {
-        return {};
+        return {ARG_DOMAIN};
     }
 private:
 };

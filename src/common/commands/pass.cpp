@@ -5,18 +5,8 @@ public:
     PassCommand(): Command(MIDDLEWARE_LOGGING) {}
 
     void execute(Socket &, Context &context, const CommandArgs &args) {
-        std::string pwd = args[0].get<std::string>();
-        if (context.user == "") {
-            throw CommandException("Pass must be executed after a call to login");
-        } else {
-            if (Config::isUserPwdValid(context.user, pwd)) {
-                context.isLogged = true;
-                context.relative_path = Path("");
-            } else {
-                context.reset();
-                throw CommandException("Unknown user/pwd pair");
-            }
-        }
+        /// This will throw a CommandException if the credentials are incorrect.
+        context.login(context.user, args[0].get<std::string>());
     }
 
     Specification getSpecification() const {

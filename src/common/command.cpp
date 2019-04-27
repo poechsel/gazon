@@ -1,5 +1,8 @@
 #include <common/command.h>
 
+// Initialization of static variables.
+std::map<std::string, unsigned int> Context::logged;
+std::mutex Context::loggedMutex;
 std::unordered_map<std::string, CommandFactory::Constructor> *CommandFactory::m_constructors = nullptr;
 
 void CommandFactory::registerC(const std::string &name, Constructor c) {
@@ -45,7 +48,7 @@ CommandArgs convertAndTypecheckArguments(const Context &context, Specification c
                In any case, we add it to the relative path in the context. If
                this argpath is relative, the behavior is as expected. If the argpath
                is absolute, the concatenation operator will only return the argpath */
-            Path relative_path = context.relative_path + argpath;
+            Path relative_path = context.relativePath + argpath;
             /* Then we force the path to be relative to the base directory */
             relative_path.setRelative();
             if (relative_path.attemptParentTraversal()) {
@@ -83,6 +86,10 @@ bool Command::middleware(Context &context) const {
         /// User should be logged in.
         case MIDDLEWARE_LOGGED:
             return context.isLogged;
+
+        /// User should be logged out.
+        case MIDDLEWARE_LOGGED_OUT:
+            return !context.isLogged;
 
         /// Unknown middleware.
         default:

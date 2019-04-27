@@ -4,7 +4,7 @@ class ExitCommand : public Command {
 public:
     ExitCommand(): Command(MIDDLEWARE_NONE) {}
 
-    void execute(Socket &socket, Context &context, const CommandArgs &args) {
+    void execute(Socket &socket, Context&, const CommandArgs&) {
         socket.close();
     }
 

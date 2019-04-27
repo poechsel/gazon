@@ -84,6 +84,7 @@ int main() {
 
         cpool.setOnClosing([&](Socket &socket) {
             std::unique_lock<std::mutex> contexts_lock(contexts_mutex);
+            contexts.at(socket.getFd()).logout();
             contexts.erase(socket.getFd());
         });
 

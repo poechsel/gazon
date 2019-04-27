@@ -2,9 +2,10 @@
 
 #include <vector>
 #include <common/variant.h>
-#include <unordered_map>
+#include <map>
 #include <functional>
 #include <iostream>
+#include <mutex>
 #include <common/common.h>
 #include <common/socket.h>
 #include <common/path.h>
@@ -20,11 +21,12 @@ public:
     }
 };
 
-/* Enumeration of possible types for the arguments */
+/* Enumeration of possible types for the arguments. */
 enum ArgTypes {
     ARG_PATH,
     ARG_INT,
     ARG_STR,
+    ARG_DOMAIN,
 };
 
 typedef std::vector<std::string> CommandArgsString;
@@ -34,31 +36,63 @@ typedef std::vector<CommandArg> CommandArgs;
 typedef std::vector<ArgTypes> Specification;
 
 enum MiddlewareTypes {
-                      // a command can always be used
-                      MIDDLEWARE_NONE,
-                      // a command can only be used if a user is logged
-                      MIDDLEWARE_LOGGED,
-                      // a command can only be used when a user is attempting to log
-                      MIDDLEWARE_LOGGING,
+    MIDDLEWARE_NONE,       //< The command can always be used.
+    MIDDLEWARE_LOGGING,    //< The user must have started a login attempt.
+    MIDDLEWARE_LOGGED,     //< The user must be logged in.
+    MIDDLEWARE_LOGGED_OUT, //< The user must be logged out.
 };
 
+/** The context of a single user session. */
 class Context {
 public:
-    bool isLogged;
-    std::string user;
-    Path relative_path;
+    // Static map of all the logged in users (and number of active sessions).
+    static std::map<std::string, unsigned int> logged;
+    static std::mutex loggedMutex;
 
-    Context(): isLogged(false), user(""), relative_path("") {
-    }
+    /// Whether the user is currently logged in.
+    bool isLogged = false;
 
+    /// The username that the user is logged in as.
+    std::string user = "";
+
+    /// The relative path of the current working directory.
+    Path relativePath;
+
+    Context(): relativePath("") {}
+
+    /** Return the absolute path of the current working directory. */
     Path getAbsolutePath() const {
-        return Config::base_directory + relative_path;
+        return Config::base_directory + relativePath;
     }
 
-    void reset() {
+    /** Try to log the user in, throw a CommandException otherwise. */
+    void login(const std::string &username, const std::string &password) {
+        if (!Config::isUserPwdValid(username, password)) {
+            throw CommandException("Invalid credentials.");
+        }
+
+        user = username;
+        isLogged = true;
+        relativePath = Path("");
+
+        // If the entry doesn't exist, it will be zero-initialized.
+        std::unique_lock<std::mutex> lock(loggedMutex);
+        logged[username]++;
+    }
+
+    /** Try to log the user out, or fail silently. */
+    void logout() {
+        if (!isLogged) {
+            return;
+        }
+
+        std::string username = user;
         user = "";
         isLogged = false;
-        relative_path = Path("");
+        relativePath = Path("");
+
+        std::unique_lock<std::mutex> lock(loggedMutex);
+        logged[username]--;
     }
 };
 

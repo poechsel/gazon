@@ -14,7 +14,7 @@ public:
         if (!entry->isFolder) {
             throw CommandException(relative_path_to_cd.string() + " is not a directory");
         }
-        context.relative_path = relative_path_to_cd;
+        context.relativePath = relative_path_to_cd;
     }
 
     Specification getSpecification() const {
