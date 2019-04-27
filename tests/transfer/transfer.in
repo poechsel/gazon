@@ -1,0 +1,7 @@
+login u1
+pass p1
+ls 
+get server_file.txt
+ls
+put client_file.txt 74
+ls

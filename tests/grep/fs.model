@@ -1,0 +1,6 @@
+dir1/F1.txt: write "This is file 1."
+A-F1.txt: write "This is a file."
+F1.txt: write "This is file 1."
+F2.txt: write "This is file 2."
+F3.txt: write "Nothing here."
+Sample.txt: write "Sample."

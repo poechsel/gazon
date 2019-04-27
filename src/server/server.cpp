@@ -76,6 +76,9 @@ int main() {
                 } catch (const CommandException &e) {
                     // CommandExceptions should be sent back to the client.
                     socket << "Error " << e.what() << endl;
+                } catch (const FilesystemException &e) {
+                    // CommandExceptions should be sent back to the client.
+                    socket << "Error " << e.what() << endl;
                 }
 
                 delete command;
