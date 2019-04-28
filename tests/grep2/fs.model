@@ -1,0 +1,6 @@
+F1.txt: write "some random text"
+F2.txt: write "some other random text"
+dir1/F1.txt: write "random.guy@epfffl.ch"
+dir1/dir2/F1.txt: write "random_guy@epfl.com"
+dir1/dir2/F2.txt: write "random.guy@epfl.ch"
+dir1/F2.txt: write "randomguy@epfl.ch"

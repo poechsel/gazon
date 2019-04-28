@@ -66,7 +66,7 @@ int main() {
                     );
 
                     if (!command->middleware(context)) {
-                        throw CommandException("Unauthorized command.");
+                        throw CommandException("access denied.");
                     }
 
                     command->execute(socket, context, args);
@@ -74,6 +74,9 @@ int main() {
                     // NetworkingExceptions should only be logged.
                     cout << "[ERROR] Networking: " << e.what() << endl;
                 } catch (const CommandException &e) {
+                    // CommandExceptions should be sent back to the client.
+                    socket << "Error " << e.what() << endl;
+                } catch (const FilesystemException &e) {
                     // CommandExceptions should be sent back to the client.
                     socket << "Error " << e.what() << endl;
                 }

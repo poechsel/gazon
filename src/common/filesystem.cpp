@@ -130,7 +130,7 @@ FilesystemEntry* Filesystem::unsafeGetEntryNode(const Path &path) {
         if (entry->children.count(el) > 0) {
             entry = entry->children[el];
         } else {
-            throw FilesystemException(path.string() + " not found");
+            throw FilesystemException(path.string() + ": No such file or directory");
         }
     }
     return entry;

@@ -23,7 +23,8 @@ std::tuple<Command*, CommandArgsString> commandFromInput(std::string const& inpu
         uint end = skipArg(start, input);
         std::string arg = input.substr(start, end - start);
         start = end;
-        command_args.push_back(arg);
+        if (arg.size() > 0)
+            command_args.push_back(arg);
     }
     return make_tuple(command, command_args);
 }
@@ -52,9 +53,9 @@ CommandArgs convertAndTypecheckArguments(const Context &context, Specification c
             /* Then we force the path to be relative to the base directory */
             relative_path.setRelative();
             if (relative_path.attemptParentTraversal()) {
-                throw CommandException("access denied!");
+                throw CommandException("access denied.");
             }
-            if (relative_path.size() > 128) {
+            if (relative_path.length() > 128) {
                 throw CommandException("the path is too long.");
             }
             arg.set<Path>(relative_path);
@@ -68,6 +69,9 @@ CommandArgs convertAndTypecheckArguments(const Context &context, Specification c
 
 /** Checks whether the command can proceed to execution. */
 bool Command::middleware(Context &context) const {
+    if (m_middlewareTypes != MIDDLEWARE_LOGGING)
+        context.isLoggingIn = false;
+
     switch (m_middlewareTypes) {
         /// No additional checks needed.
         case MIDDLEWARE_NONE:
@@ -75,7 +79,7 @@ bool Command::middleware(Context &context) const {
 
         /// User should have filled their username.
         case MIDDLEWARE_LOGGING:
-            if (context.user != "" && !context.isLogged) {
+            if (context.isLoggingIn) {
                 return true;
             } else {
                 context.isLogged = false;

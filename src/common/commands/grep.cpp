@@ -38,7 +38,6 @@ public:
     }
 
     void execute(Socket &socket, Context &context, const CommandArgs &args) {
-
         std::string pattern = args[0].get<std::string>();
         if (heuristic(context.getAbsolutePath(), pattern)) {
             Regex regex(".*" + pattern + ".*");
@@ -62,10 +61,12 @@ public:
             }
         } else {
             //TODO add sanitization
-            socket << exec(std::string("grep -Rl ")
-                           + "--exclude-dir=" + Config::temp_directory + " "
-                           + pattern + " "
-                           + context.getAbsolutePath().string()) << "\n";
+            //TODO is the sort really needed?
+            std::string cmd = "cd " + context.getAbsolutePath().string() +
+                "; grep -Rl --exclude-dir=" + Config::temp_directory + " "
+                + pattern + " * | sort";
+
+            socket << exec(cmd) << std::endl;
         }
     }
 

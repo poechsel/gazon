@@ -54,10 +54,14 @@ void parseLine(std::string const &path, std::istringstream &iss, int nline) {
             std::string base_directory;
             if (iss >> base_directory) {
 
-                char buf[PATH_MAX + 1];
-                getcwd(buf, PATH_MAX);
-                Config::base_directory = std::string(buf) + "/" + base_directory;
-                if (::mkdir(Config::base_directory.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) == -1 && errno != EEXIST ) {
+                if (base_directory[0] == '/') {
+                    Config::base_directory = base_directory;
+                } else {
+                    char buf[PATH_MAX + 1];
+                    getcwd(buf, PATH_MAX);
+                    Config::base_directory = std::string(buf) + "/" + base_directory;
+                }
+                if (::mkdir(Config::base_directory.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) == -1 && errno != EEXIST) {
                     throw ConfigException(path, nline, strerror(errno));
                 }
             } else {
