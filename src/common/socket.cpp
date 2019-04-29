@@ -1,13 +1,9 @@
 #include <common/socket.h>
 
 #include <vector>
-#include <iostream>
 #include <algorithm>
-#include <errno.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <string.h>
-#include <arpa/inet.h>
 #include <sys/time.h>
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -15,13 +11,6 @@
 
 using std::cout;
 using std::endl;
-
-/** Return a formatted string containing the current value of errno. */
-std::string formatError(const string& message) {
-    std::stringstream error;
-    error << message << ": " << ::strerror(errno) << ".";
-    return error.str();
-}
 
 /** Create a new socket. */
 Socket::Socket() {
@@ -56,6 +45,17 @@ void Socket::bind(const Address& address) {
     if (::bind(fd, (struct sockaddr *) &address, sizeof(address)) < 0) {
         throw NetworkingException(formatError("Could not bind"));
     }
+}
+
+/** Return the address that the socket is currently bound to. */
+Address Socket::getAddress() const {
+    Address address;
+    socklen_t addressLength = sizeof(address);
+    if (::getsockname(fd, (struct sockaddr *) &address, &addressLength) < 0) {
+        throw NetworkingException(formatError("Could not retrieve address"));
+    }
+    
+    return address;
 }
 
 /** Listen for new connections on the socket. */
@@ -93,11 +93,16 @@ Socket &Socket::operator<<(const char* s) {
 
 /** Write a C-style string to the socket. */
 void Socket::write(const char* s) {
+    write(s, strlen(s));
+}
+
+/** Write raw data to the socket. */
+void Socket::write(const char* s, unsigned int count) {
     if (fd < 0) {
         throw NetworkingException("Could not write: socket is uninitialized.");
     }
 
-    if (::write(fd, s, strlen(s)) < 0) {
+    if (::write(fd, s, count) < 0) {
         throw NetworkingException(formatError("Could not write"));
     }
 }
@@ -109,7 +114,7 @@ ssize_t Socket::buffer() {
     }
 
     char buffer[BUFFER_SIZE];
-    ssize_t bytesRead = ::recv(fd, &buffer, BUFFER_SIZE, 0);
+    ssize_t bytesRead = ::read(fd, &buffer, BUFFER_SIZE);
 
     if (bytesRead < 0) {
         throw NetworkingException(formatError("Could not read"));

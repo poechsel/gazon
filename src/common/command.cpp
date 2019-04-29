@@ -38,7 +38,6 @@ CommandArgs convertAndTypecheckArguments(const Context &context, Specification c
         if (spec[i] == ARG_INT) {
             try {
                 arg.set<int>(std::stoi(args[i]));
-                break;
             } catch (const std::exception &e) {
                 throw CommandException("argument should be an int");
             }

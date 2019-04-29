@@ -6,8 +6,11 @@
 #include <vector>
 #include <unordered_map>
 #include <algorithm>
+#include <cstring>
 #include <string>
 #include <common/defer.h>
+#include <iostream>
+#include <sstream>
 
 struct NetworkingException : public std::runtime_error {
 public:
@@ -19,7 +22,24 @@ public:
     }
 };
 
+struct CommandException : public std::runtime_error {
+public:
+    CommandException(std::string m): std::runtime_error(m) {
+    }
+
+	const char * what () const throw () {
+    	return std::runtime_error::what();
+    }
+};
+
 typedef unsigned int uint;
+
+
+/** Return a formatted string containing the current value of errno. */
+std::string formatError(const std::string& message);
+
+/** Enforce that the result of a function to be >= 0. */
+void enforce(int i);
 
 /* Return the index of the first non empty char in `s` after `start` */
 uint skipEmptyChars(uint start, std::string const& s);

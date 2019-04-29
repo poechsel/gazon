@@ -1,4 +1,19 @@
 #include <common/common.h>
+#include <errno.h>
+
+/** Return a formatted string containing the current value of errno. */
+std::string formatError(const std::string& message) {
+    std::stringstream error;
+    error << message << ": " << ::strerror(errno) << ".";
+    return error.str();
+}
+
+/** Enforce that the result of a function to be >= 0. */
+void enforce(int i) {
+    if (i < 0) {
+        throw CommandException(formatError("Failed"));
+    }
+}
 
 uint skipEmptyChars(uint start, std::string const& s) {
     uint end = start;

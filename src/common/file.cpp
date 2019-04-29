@@ -1,51 +1,58 @@
 #include <common/file.h>
+using namespace std;
 
-void File::open(const Path &path, std::string type) {
-    m_opened_type = type;
-    m_file = fopen(path.string().c_str(), type.c_str());
-    if (!m_file)
-        throw FilesystemException(path.string() + "can't be opened");
+/** Open the file at the given path. */
+void File::open(const Path &p) {
+    path = p;
+    stream = ifstream(p.string(), ios::in | ios::binary | ios::ate);
+    size = stream.tellg();
+    stream.seekg(0, ios::beg);
 }
 
+/** Close the currently opened file. */
 void File::close() {
-    if (m_file) {
-        fclose(m_file);
-        m_file = nullptr;
+    if (stream.is_open()) {
+        stream.close();
+        size = 0;
     }
 }
 
+/** Read a line from the file and store it in a buffer. */
 bool File::getLine(std::string &out) {
-    char line[64];
-    char *result;
-    while (true) {
-        if ((result = fgets(line, 64, m_file)) != nullptr) {
-            auto cpp = std::string(result);
-            out += cpp;
-            if (cpp[cpp.size() - 1] == '\n') {
-                out.pop_back();
-                return true;
-            }
-        } else {
-            return false;
-        }
-    }
-    return true;
+    return static_cast<bool>(getline(stream, out));
 }
 
+/** Read at most n characters from the file. */
+unsigned int File::read(char* buffer, unsigned int count) {
+    stream.read(buffer, count);
+    return stream.gcount();
+}
 
-void ProxyWriteFile::close() {
-    if (m_file) {
-        fclose(m_file);
-        m_file = nullptr;
-        std::cout<<"renaming "<<tempPath<<" to "<<path.string()<<"\n";
-        if (rename(tempPath.c_str(), path.string().c_str()) != 0)
-            throw FilesystemException(strerror(errno));
+/** Open the given temporary file. */
+void TemporaryFile::open(const Path &p) {
+    tempPath = p;
+    stream = ofstream(p.string(), ios::out | ios::binary | ios::trunc);
+}
+
+/** Close the temporary file. */
+void TemporaryFile::close() {
+    if (stream.is_open()) {
+        stream.close();
     }
 }
 
-void ProxyWriteFile::write(uint32_t n, const char* content) {
-    //TODO:
-    if (m_file) {
-        fprintf(m_file, content);
+/** Commit the temporary file to its real path. */
+void TemporaryFile::commit() {
+    close();
+
+    std::string temp = tempPath.string();
+    std::string real = realPath.string();
+    if (rename(temp.c_str(), real.c_str()) != 0) {
+        throw FilesystemException("Could not commit temporary file.");
     }
+}
+
+/** Write raw data to the file. */
+void TemporaryFile::write(const char* buffer, unsigned int count) {
+    stream.write(buffer, count);
 }

@@ -2,8 +2,9 @@
 
 #include <common/common.h>
 #include <unordered_map>
-#include <sstream>
 #include <functional>
+
+#include <arpa/inet.h>
 
 using std::string;
 using Address = struct sockaddr_in;
@@ -33,10 +34,10 @@ public:
     ~Socket() { closeFd(); }
 
     /** Return the underlying file descriptor of the socket. */
-    int getFd() { return fd; }
+    int getFd() const { return fd; }
 
     /** Return whether the socket is dirty. */
-    bool isDirty() { return dirty; }
+    bool isDirty() const { return dirty; }
 
     /** Connect the socket to a remote address. */
     void connect(const Address& address);
@@ -44,13 +45,16 @@ public:
     /** Bind the socket to a local address. */
     void bind(const Address& address);
 
+    /** Return the address that the socket is currently bound to. */
+    Address getAddress() const;
+
     /**
      * Listen for new connections on the socket.
      * @return ConnectionPool to help keeping track of the connections.
      */
     ConnectionPool listen();
 
-    /** Write an arbitrary output stream to the socket. */
+    /** Write an arbNitrary output stream to the socket. */
     Socket &operator<<(std::ostream&(*f)(std::ostream&));
 
     /** Write a string to the socket. */
@@ -61,6 +65,14 @@ public:
 
     /** Write a C-style string to the socket. */
     void write(const char* s);
+
+    /**
+     * Write raw data to the socket.
+     * 
+     * @param buffer The source buffer for the data.
+     * @param count  The number of bytes to write.
+     */
+    void write(const char* buffer, unsigned int count);
 
     /**
      * Buffer data from the socket into the internal buffer.

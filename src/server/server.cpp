@@ -26,8 +26,11 @@ int main() {
     std::unordered_map<int, Context> contexts;
     std::mutex contexts_mutex;
 
-    // The pool of threads in which to allocate the tasks.
+    // The pool of threads in which to allocate the commands.
     ThreadPool<int, 4> tpool;
+
+    // The pool of threads in which to allocate the file jobs.
+    ThreadPool<int, 8> fpool;
 
     try {
         Config::fromFile("grass.conf");
@@ -56,6 +59,7 @@ int main() {
                 // In case of a miss, operator[] creates a new instance.
                 std::unique_lock<std::mutex> contexts_lock(contexts_mutex);
                 Context &context = contexts[socket.getFd()];
+                context.fpool = &fpool;
                 contexts_lock.unlock();
 
                 try {
@@ -98,6 +102,7 @@ int main() {
 
     // Wait until all the threads are finished executing.
     tpool.join();
+    fpool.join();
 
     // Avoid memory leaks by deallocating all the constructors for
     // the commands registered using the REGISTER_COMMAND macro.

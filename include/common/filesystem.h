@@ -81,17 +81,23 @@ public:
     /* Create a directory */
     static void mkdir(const Path &path);
 
-    /* Create a file.
-       Does not guarantee that until a matching call to [commit] the created
-       file is physically store or even stored at the location pointed by [path] */
-    static ProxyWriteFile createFile(const Path &path);
+    /**
+     * Create a TemporaryFile.
+     * 
+     * The created file is not guaranteed to be stored on the physical and
+     * virtual filesystems until [commit] is called on the TemporaryFile.
+     */
+   static TemporaryFile createFile(const Path &path);
 
-    /* Committing a file to the filesystem means that:
-       - we close the file [file]
-       - the file is present on the physicall file system
-       - the file is added to the virtual filesystem
-    */
-    static void commit(ProxyWriteFile &file);
+    /**
+     * Commit a TemporaryFile to the filesystem.
+     * 
+     * Precisely, this will:
+     * - Close the file [file];
+     * - Add it to the physical filesystem;
+     * - Add it to the virtual filesystem.
+     */
+   static void commit(TemporaryFile &file);
 
     /* Get the unix group corresponding to uid [uid].
        Do some caching */

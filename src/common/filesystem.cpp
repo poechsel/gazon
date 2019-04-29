@@ -67,17 +67,19 @@ void Filesystem::mkdir(const Path &path) {
     }
 }
 
-ProxyWriteFile Filesystem::createFile(const Path &path) {
-    // thread safe because _getNumberMissingChild is threadsafe
+/** Create a TemporaryFile. */
+TemporaryFile Filesystem::createFile(const Path &path) {
+    // Thread-safe because _getNumberMissingChild is thread-safe.
     int number_node_to_add = _getNumberMissingChild(path);
-    // we can either overwrite a file or write a new one
-    // In the first case number_node_to_add is 0, in the second one
+
+    // We can either overwrite a file or write a new one.
     if (number_node_to_add > 1) {
-        throw FilesystemException("Can't create "
-                                  + path.string()
-                                  + ": skipping part of the arborescence");
+        throw FilesystemException(
+            "Can't create " + path.string() +
+            ": skipping part of the arborescence");
     }
-    return ProxyWriteFile(newTempName(), path);
+
+    return TemporaryFile(newTempName(), path);
 }
 
 std::string Filesystem::newTempName() {
@@ -86,22 +88,24 @@ std::string Filesystem::newTempName() {
     return Config::temp_directory + std::to_string(m_temp_counter);
 }
 
-void Filesystem::commit(ProxyWriteFile &file) {
-    // threadsafe because _removeNodeFromVirtualFS and _insertNode are thread safe
-    file.close();
+/** Commit a TemporaryFile to the filesystem. */
+void Filesystem::commit(TemporaryFile &file) {
+    // Thread-safe because _removeNodeFromVirtualFS and _insertNode are.
+    file.commit();
+
     struct stat status;
-    if (stat(file.path.string().c_str(), &status) == -1) {
+    if (stat(file.realPath.string().c_str(), &status) == -1) {
         throw FilesystemException(strerror(errno));
     }
 
-    // We try to remove the file from the virtual fs
-    // If we can delete it, it means that we are overwritting it
-    // Then deleting the virtual binding is a good thing to maintain integrity.
-    // Otherwise, an exception will be raised, which we will catch
+    // We try to remove the file from the virtual filesystem.
+    // - If we can delete it, it means that we are overwritting it.
+    //   Then deleting the virtual binding is good to maintain integrity.
+    // - Otherwise, an exception will be raised, which we will catch.
     try {
-        _removeNodeFromVirtualFS(file.path);
+        _removeNodeFromVirtualFS(file.realPath);
     } catch (const std::exception&) {}
-    _insertNode(file.path, &status, false);
+    _insertNode(file.realPath, &status, false);
 }
 
 std::string Filesystem::unsafeGetUser(uid_t uid) {
@@ -140,7 +144,6 @@ bool Filesystem::isHiddenFile(std::string name) {
     return name.size() > 0 ? name[0] == '.' : false;
 }
 
-
 File Filesystem::read(const Path &path) {
     std::unique_lock<std::mutex> lock(m_mutex);
     return unsafeRead(path);
@@ -148,7 +151,7 @@ File Filesystem::read(const Path &path) {
 
 File Filesystem::unsafeRead(const Path &path) {
     unsafeGetEntryNode(path); // only to throw an error if we can't access this file
-    return File(path, "rb");
+    return File(path);
 }
 
 int Filesystem::_getNumberMissingChild(const Path &path) {

@@ -10,16 +10,7 @@
 #include <common/socket.h>
 #include <common/path.h>
 #include <common/config.h>
-
-struct CommandException : public std::runtime_error {
-public:
-    CommandException(std::string m): std::runtime_error(m) {
-    }
-
-	const char * what () const throw () {
-    	return std::runtime_error::what();
-    }
-};
+#include <common/threadpool.h>
 
 /* Enumeration of possible types for the arguments. */
 enum ArgTypes {
@@ -58,6 +49,9 @@ public:
 
     /// The relative path of the current working directory.
     Path relativePath;
+
+    /// The thread pool in which to allocate file jobs.
+    ThreadPool<int, 8> *fpool = nullptr;
 
     Context(): relativePath("") {}
 
