@@ -64,7 +64,8 @@ public:
                     cout << "[INFO] Received file " << path.string() << "." << endl;
                 } else {
                     output.close();
-                    socket << "Error: did not receive the whole file." << endl;
+                    socket << "Error: did not receive the whole file ("
+                           << std::to_string(totalRead) << " bytes read)." << endl;
                     cout << "[ERROR] Did not receive the whole file for "
                          << path.string() << " (" << totalRead << ")." << endl;
                 }

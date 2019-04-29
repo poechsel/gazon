@@ -63,7 +63,7 @@ public:
     /** Try to log the user in, throw a CommandException otherwise. */
     void login(const std::string &username, const std::string &password) {
         if (!Config::isUserPwdValid(username, password)) {
-            throw CommandException("Authentication failed.");
+            throw CommandException("authentication failed.");
         }
 
         user = username;
