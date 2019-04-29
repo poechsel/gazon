@@ -1,9 +1,11 @@
 language: cpp
 os: linux
+dist: xenial
+compiler: g++
 notifications:
   email: true
 python:
-    - "3.4"
+  - "3.4"
 
 addons:
   apt:
@@ -18,7 +20,7 @@ cache:
     - build
 
 before_install:
-    - pip3 install --user pytest
+  - pip3 install --user pytest
 
 install:
   - echo ${PATH}
