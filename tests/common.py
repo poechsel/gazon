@@ -80,7 +80,7 @@ def server(request):
 
     client_fs_marker = request.node.get_closest_marker("clientfs")
     if client_fs_marker is not None:
-        load_fs(".", fs_marker.args[0])
+        load_fs(".", client_fs_marker.args[0])
 
     grass_conf_content = generate_grass_conf(basedir, users)
     with open("grass.conf", "w") as grass_conf:
