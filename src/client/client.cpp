@@ -164,10 +164,9 @@ void run(
 
 /** Start the client. */
 int main(int argc, char **argv) {
-    Pool pool;
-
     try {
         CliArguments args(argc, argv);
+        Pool pool;
         Socket socket;
         socket.connect(Socket::parseAddress(args.serverIp, args.serverPort));
         socket.useThrowOnClose();
@@ -182,14 +181,14 @@ int main(int argc, char **argv) {
         } else {
             run(args, socket, pool, readInput, printOutput);
         }
+
+        // Wait until all the threads are finished executing.
+        pool.join();
     } catch (const NetworkingException& e) {
         cout << "[ERROR] Networking: " << e.what() << endl;
     } catch (const exception& e) {
         cout << "[ERROR] " << e.what() << endl;
     }
-
-    // Wait until all the threads are finished executing.
-    pool.join();
 
     return 0;
 }

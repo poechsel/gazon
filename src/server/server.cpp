@@ -79,10 +79,10 @@ int main() {
                     cout << "[ERROR] Networking: " << e.what() << endl;
                 } catch (const CommandException &e) {
                     // CommandExceptions should be sent back to the client.
-                    socket << "Error " << e.what() << endl;
+                    socket << "Error: " << e.what() << endl;
                 } catch (const FilesystemException &e) {
                     // CommandExceptions should be sent back to the client.
-                    socket << "Error " << e.what() << endl;
+                    socket << "Error: " << e.what() << endl;
                 }
 
                 delete command;
@@ -91,8 +91,10 @@ int main() {
 
         cpool.setOnClosing([&](Socket &socket) {
             std::unique_lock<std::mutex> contexts_lock(contexts_mutex);
-            contexts.at(socket.getFd()).logout();
-            contexts.erase(socket.getFd());
+            if (contexts.count(socket.getFd()) > 0) {
+                contexts.at(socket.getFd()).logout();
+                contexts.erase(socket.getFd());
+            }
         });
 
         cpool.run();
