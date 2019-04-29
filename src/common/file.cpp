@@ -1,14 +1,6 @@
 #include <common/file.h>
 using namespace std;
 
-/** Open the file at the given path. */
-void File::open(const Path &p) {
-    path = p;
-    stream = ifstream(p.string(), ios::in | ios::binary | ios::ate);
-    size = stream.tellg();
-    stream.seekg(0, ios::beg);
-}
-
 /** Close the currently opened file. */
 void File::close() {
     if (stream.is_open()) {
@@ -26,12 +18,6 @@ bool File::getLine(std::string &out) {
 unsigned int File::read(char* buffer, unsigned int count) {
     stream.read(buffer, count);
     return stream.gcount();
-}
-
-/** Open the given temporary file. */
-void TemporaryFile::open(const Path &p) {
-    tempPath = p;
-    stream = ofstream(p.string(), ios::out | ios::binary | ios::trunc);
 }
 
 /** Close the temporary file. */

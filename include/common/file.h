@@ -19,11 +19,15 @@ public:
 class File {
 public:
     File(File&&) = default;
-    File(const Path &p): path("") { open(p); }
+    File(const Path &p):
+        path(p),
+        stream(
+            p.string(),
+            std::ios::in | std::ios::binary | std::ios::ate) {
+        size = stream.tellg();
+        stream.seekg(0, std::ios::beg);
+    }
     ~File() { close(); }
-
-    /** Open the file at the given path. */
-    void open(const Path&);
 
     /** Close the currently opened file. */
     void close();
@@ -51,12 +55,12 @@ class TemporaryFile {
 public:
     TemporaryFile(TemporaryFile&&) = default;
     TemporaryFile(const Path &tempPath, const Path &realPath):
-        tempPath(""),
-        realPath(realPath) { open(tempPath); }
+        tempPath(tempPath),
+        realPath(realPath),
+        stream(
+            tempPath.string(),
+            std::ios::out | std::ios::binary | std::ios::trunc) {}
     ~TemporaryFile() { close(); }
-
-    /** Open the given temporary file. */
-    void open(const Path &path);
 
     /** Close the temporary file. */
     void close();
