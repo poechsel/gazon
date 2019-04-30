@@ -2,27 +2,41 @@
 #include <common/filesystem.h>
 #include <common/regex.h>
 
+#define GrepCommand_LIMIT_N_FILE 100
+
 class GrepCommand : public Command {
 public:
     GrepCommand(): Command(MIDDLEWARE_LOGGED) {}
 
-    void my_grep(const Path &path, const Path &relative_path, Regex &regex, FilesystemEntry *entry, std::vector<std::string> &matched_files) {
+    void my_grep_aux_unsafe(const Path &path, const Path &relative_path, Regex &regex, FilesystemEntry *entry, std::vector<std::string> &matched_files, short *line_positions) {
+        std::vector<std::string> files;
         for (auto efile : entry->children) {
-            if (Filesystem::isHiddenFile(efile.first)) {
-            } else if (efile.second->isFolder) {
-                my_grep(path + efile.first, relative_path + efile.first, regex, efile.second, matched_files);
+            files.push_back(efile.first);
+        }
+        std::sort(files.begin(), files.end(),
+                  [](const std::string &a, const std::string &b) {
+                      return strcoll(a.c_str(), b.c_str()) < 0;
+                  });
+        for (const std::string &file_name : files) {
+            auto node = entry->children[file_name];
+            if (Filesystem::isHiddenFile(file_name)) {
+            } else if (node->isFolder) {
+                my_grep_aux_unsafe(path + file_name, relative_path + file_name, regex, node, matched_files, line_positions);
             } else {
-                Path cpath = path + efile.first;
+                Path cpath = path + file_name;
                 File file = Filesystem::unsafeRead(cpath);
                 std::string line;
+                int line_number = 0;
                 bool status = true;
                 do {
                     status = file.getLine(line);
                     if (regex.match(line)) {
-                        matched_files.push_back((relative_path + efile.first).string());
+                        line_positions[matched_files.size()] = line_number;
+                        matched_files.push_back((relative_path + file_name).string());
                         break;
                     }
                     line = "";
+                    line_number++;
                 } while (status);
 
                 file.close();
@@ -30,35 +44,47 @@ public:
         }
     }
 
+    void my_grep_safe(Socket &socket, Context &context, Regex &regex, short *line_positions,
+                  std::vector<std::string> &matched_files) {
+        Filesystem::lock();
+        DEFER(Filesystem::unlock());
+        auto entry = Filesystem::unsafeGetEntryNode(context.getAbsolutePath());
+        my_grep_aux_unsafe(context.getAbsolutePath(), Path(""), regex, entry, matched_files, line_positions);
+    }
+
+    void my_grep(Socket &socket, Context &context, Regex &regex) {
+        short line_positions[GrepCommand_LIMIT_N_FILE];
+        std::vector<std::string> matched_files;
+
+        my_grep_safe(socket, context, regex, line_positions, matched_files);
+
+        for (unsigned int i = 0; i < matched_files.size(); ++i) {
+            socket << matched_files[i] << "\n";
+        }
+    }
+
     bool heuristic(const Path &absolute_path, std::string regex) {
         Filesystem::lock();
         DEFER(Filesystem::unlock());
         auto entry = Filesystem::unsafeGetEntryNode(absolute_path);
-        return (regex.size() <= 8 && entry->nSubFolders == 0 && entry->nRecChildren <= 100 && entry->size <= 100 * 0xffff);
+        std::vector<std::string> files;
+        for (auto efile : entry->children) {
+            files.push_back(efile.first);
+        }
+        std::sort(files.begin(), files.end(),
+                  [](const std::string &a, const std::string &b) {
+                      return strcoll(a.c_str(), b.c_str()) < 0;
+                  });
+        return (regex.size() <= 8 /*&& entry->nSubFolders == 0*/
+                && entry->nRecChildren <= GrepCommand_LIMIT_N_FILE
+                && entry->size <= GrepCommand_LIMIT_N_FILE * 0xffff);
     }
 
     void execute(Socket &socket, Context &context, const CommandArgs &args) {
         std::string pattern = args[0].get<std::string>();
         if (heuristic(context.getAbsolutePath(), pattern)) {
             Regex regex(".*" + pattern + ".*");
-
-            std::vector<std::string> matched_files;
-
-            {
-                Filesystem::lock();
-                DEFER(Filesystem::unlock());
-                auto entry = Filesystem::unsafeGetEntryNode(context.getAbsolutePath());
-                my_grep(context.getAbsolutePath(), Path(""), regex, entry, matched_files);
-            }
-
-            std::sort(matched_files.begin(), matched_files.end(),
-                      [](const std::string &a, const std::string &b) {
-                          return strcoll(a.c_str(), b.c_str()) < 0;
-                      });
-
-            for (auto e : matched_files) {
-                socket << e << "\n";
-            }
+            my_grep(socket, context, regex);
         } else {
             //TODO add sanitization
             //TODO is the sort really needed?

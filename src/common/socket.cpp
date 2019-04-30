@@ -291,7 +291,7 @@ void ConnectionPool::run() {
                 // Check if the socket contains a full packet, and call the
                 // registered packet handler in that case.
                 std::string packet;
-                if (socket.getLine(packet) && onPacket) {
+                while (socket.getLine(packet) && onPacket) {
                     onPacket(socket, std::move(packet));
                 }
             }

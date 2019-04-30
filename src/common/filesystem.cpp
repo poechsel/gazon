@@ -227,6 +227,7 @@ void Filesystem::_removeNodeFromVirtualFS(const Path &path) {
         entry->nRecChildren -= node_to_delete->nRecChildren + 1;
         entry->nSubFolders -= node_to_delete->nSubFolders + node_to_delete->isFolder;
         if (entry->children[el] == node_to_delete) {
+            entry->nRecChildren--;
             entry->children.erase(el);
             break;
         } else {

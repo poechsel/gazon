@@ -50,7 +50,7 @@ uint skipNonEmptyChars(uint start, std::string const& s);
 /* Return the index of the first char in `prohibited` */
 uint skipUntil(uint start, std::string const &s, std::string const &chars);
 
-uint skipArg(uint start, std::string const& s);
+std::tuple<uint, bool> skipArg(uint start, std::string const& s);
 
 std::vector<std::string> splitString(const std::string &s, char sep);
 

@@ -5,6 +5,7 @@
 #include <common/threadpool.h>
 #include <common/filesystem.h>
 
+#include <signal.h>
 #include <ctype.h>
 #include <iostream>
 #include <string>
@@ -14,24 +15,9 @@
 using std::cout;
 using std::endl;
 
-int main() {
-    // Important! Set the locale of our program to be
-    // the same as the one in our environnement.
-    std::locale::global(std::locale(""));
-
-    // The entrypoint socket of the server.
-    Socket server;
-
-    // The map of session contexts, one per open socket.
-    std::unordered_map<int, Context> contexts;
-    std::mutex contexts_mutex;
-
-    // The pool of threads in which to allocate the commands.
-    ThreadPool<int, 4> tpool;
-
-    // The pool of threads in which to allocate the file jobs.
-    ThreadPool<int, 8> fpool;
-
+void runGazon(Socket &server, std::unordered_map<int, Context> &contexts,
+              std::mutex &contexts_mutex,
+              ThreadPool<int, 4> &tpool, ThreadPool<FileKeyThread, 8> &fpool) {
     try {
         Config::fromFile("grass.conf");
         Filesystem::scan(Config::base_directory);
@@ -50,6 +36,9 @@ int main() {
         cout << endl;
 
         cpool.setOnPacket([&](Socket &socket, std::string packet) {
+            if (Config::stopRequested)
+                throw StopException();
+
             cout << "[INFO] Received packet `" << packet << "`." << endl;
 
             tpool.schedule(socket.getFd(), [&, packet](){
@@ -101,6 +90,38 @@ int main() {
     } catch (const std::exception& e) {
         cout << "[ERROR] " << e.what() << endl;
     }
+}
+
+void stopGazon(int) {
+    cout << "[INFO] The server will stop on the next request (press again Ctrl-C to force stop)\n";
+    if (Config::stopRequested) {
+        cout << "[INFO] force stop\n";
+        exit(0);
+    }
+    Config::stopRequested = true;
+}
+
+int main() {
+    // The pool of threads in which to allocate the file jobs.
+    ThreadPool<FileKeyThread, 8> fpool;
+
+    // The pool of threads in which to allocate the commands.
+    ThreadPool<int, 4> tpool;
+
+    // Important! Set the locale of our program to be
+    // the same as the one in our environnement.
+    std::locale::global(std::locale(""));
+
+    // The entrypoint socket of the server.
+    Socket server;
+
+    // The map of session contexts, one per open socket.
+    std::unordered_map<int, Context> contexts;
+    std::mutex contexts_mutex;
+
+    signal (SIGINT, stopGazon);
+
+    runGazon(server, contexts, contexts_mutex, tpool, fpool);
 
     // Wait until all the threads are finished executing.
     tpool.join();

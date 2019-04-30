@@ -10,11 +10,53 @@
 #include <thread>
 #include <vector>
 
+/* For put & get we want to preserve order on the file name:
+   Two uploads with the same filename have to be done in
+   sequential order */
+// A size of 24 should be enough to distinguish between two paths
+// (we are only using the end of the path to do the distinction)
+#define FileKeyThread_SIZE_BUF 24
+class FileKeyThread {
+public:
+    FileKeyThread() {
+        for (unsigned int i = 0; i < FileKeyThread_SIZE_BUF; ++i) {
+            content[i] = 0;
+        }
+    }
+    FileKeyThread(const std::string &name) {
+        for (unsigned int i = 0; i < std::min((size_t)FileKeyThread_SIZE_BUF, name.size()); ++i) {
+            content[i] = name[i];
+        }
+    }
+    bool operator==(const FileKeyThread &other) const {
+        for (unsigned int i = 0; i < FileKeyThread_SIZE_BUF; ++i) {
+            if (other.content[i] != content[i])
+                return false;
+        }
+        return true;
+    }
+
+    char content[FileKeyThread_SIZE_BUF] = {0};
+};
+namespace std {
+    template <>
+    struct hash<FileKeyThread> {
+        size_t operator()(const FileKeyThread &key) const {
+            // http://www.cse.yorku.ca/~oz/hash.html
+            size_t h = 5381;
+            for (int i = FileKeyThread_SIZE_BUF; i >= 0; i--) {
+                h = ((h << 5) + h) + key.content[i];
+            }
+            return h;
+        }
+    };
+}
 /** A generic queue for values of type T. */
 template <typename T>
 class Queue {
 public:
-    Queue(): m_pop_index(0), m_push_index(0){}
+    Queue(): m_pop_index(0), m_push_index(0),
+             m_times_spilled(0), m_pop_call(0), m_push_call(0), m_max_size(0){}
 
     /** Return whether the queue is empty. */
     bool empty() const {
@@ -23,6 +65,7 @@ public:
 
     /** Return the number of items in the queue. */
     size_t size() const {
+        m_max_size = std::max(m_max_size, (long long) (m_push_index + m_pop_index));
         return m_push_index + m_pop_index;
     }
 
@@ -34,12 +77,15 @@ public:
 
     /** Add an item to the back of the queue. */
     void push_back(T &&t) {
-        m_push[m_push_index++] = std::move(t);
+        m_push[m_push_index].first = t.first;
+        m_push[m_push_index++].second = t.second;
+        m_push_call++;
     }
 
     /** Remove the front item from the queue and return it. */
     T pop_front() {
         spill();
+        m_pop_call++;
         return m_pop[--m_pop_index];
     }
 
@@ -55,11 +101,17 @@ private:
     int m_pop_index;
     int m_push_index;
     T m_pop[256];
+    /* Statistics purposes */
+    long long m_times_spilled;
+    long long m_pop_call;
+    long long m_push_call;
+    mutable long long m_max_size;
     T m_push[256];
 
     /** Spill the items of m_push into m_pop in reverse order. */
     void spill() {
         if (m_pop_index == 0) {
+            m_times_spilled++;
             while (m_push_index > 0) {
                 m_pop[m_pop_index++] = m_push[--m_push_index];
             }
@@ -100,7 +152,7 @@ public:
 
         auto &subqueue = subqueues[index];
         std::unique_lock<std::mutex> queueLock(subqueue.mutex);
-        subqueue.queue.push_back(std::move(std::make_pair(tag, item)));
+        subqueue.queue.push_back(std::move(std::make_pair(item, tag)));
         queueLock.unlock();
         subqueue.condition.notify_one();
     }
@@ -121,7 +173,7 @@ public:
         });
 
         if (!subqueue.queue.empty()) {
-            std::tie(tag, item) = subqueue.queue.pop_front();
+            std::tie(item, tag) = subqueue.queue.pop_front();
             return true;
         } else {
             return false;
@@ -138,17 +190,7 @@ public:
     }
 
 private:
-    using Item = std::pair<Tag, Element>;
-
-    /// The subqueue of a single worker thread.
-    struct Subqueue {
-        Queue<Item> queue;
-        std::mutex mutex;
-        std::condition_variable condition;
-    };
-
-    /// A subqueue for each worker thread.
-    std::array<Subqueue, n> subqueues;
+    using Item = std::pair<Element, Tag>;
 
     /// A mapping of tags to their assigned worker threads.
     std::unordered_map<Tag, unsigned int> map;
@@ -161,6 +203,15 @@ private:
 
     /// Whether the queue is stopped.
     std::atomic_bool stopped;
+    /// The subqueue of a single worker thread.
+    struct Subqueue {
+        std::mutex mutex;
+        std::condition_variable condition;
+        Queue<Item> queue;
+    };
+
+    /// A subqueue for each worker thread.
+    std::array<Subqueue, n> subqueues;
 };
 
 
@@ -183,7 +234,8 @@ public:
 
     /** Schedule a new tagged job onto the pool. */
     void schedule(Tag tag, std::function<void()> job) {
-        queue.push(tag, job);
+        std::function<void()>* jobp = new std::function<void()>(std::move(job));
+        queue.push(tag, jobp);
     }
 
     /** Stop the thread pool and waits for the completion of all jobs. */
@@ -198,7 +250,7 @@ public:
 
 private:
     std::vector<std::thread> threads;
-    ThreadPoolQueue<Tag, std::function<void()>, n> queue;
+    ThreadPoolQueue<Tag, std::function<void()>*, n> queue;
 
     /**
      * Consume jobs from the queue and execute them.
@@ -211,10 +263,11 @@ private:
     void worker(unsigned int index) {
         while (true) {
             Tag tag;
-            std::function<void()> job;
+            std::function<void()>* job;
 
             if (queue.blockUntilPop(index, tag, job)) {
-                job();
+                (*job)();
+                delete job;
             } else {
                 return;
             }

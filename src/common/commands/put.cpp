@@ -30,9 +30,11 @@ public:
         enforce(getsockname(ffd, (struct sockaddr *) &addr, &addrLength));
         int port = ntohs(addr.sin_port);
 
-        // Schedule on a separate pool to allow a more fine-grained
-        // control of the number of parallel file transfers possible.
-        context.fpool->schedule(port, [&socket, &context, args, port, ffd]() {
+        FileKeyThread key(args[0].get<Path>().string());
+            // Schedule on a separate pool to allow a more fine-grained
+            // control of the number of parallel file transfers possible.
+        context.fpool->schedule(key,
+                                [&socket, &context, args, port, ffd]() {
             try {
                 Path path = context.getAbsolutePath() + args[0].get<Path>();
                 TemporaryFile output = Filesystem::createFile(path);
@@ -55,11 +57,11 @@ public:
                 int bytesRead;
                 int totalRead = 0;
                 while ((bytesRead = read(cfd, buffer, 4096)) > 0 && totalRead < size) {
+                    output.write(buffer, std::min(size - totalRead, bytesRead));
                     totalRead += bytesRead;
-                    output.write(buffer, bytesRead);
                 }
 
-                if (totalRead == size) {
+                if (totalRead >= size) {
                     Filesystem::commit(output);
                     cout << "[INFO] Received file " << path.string() << "." << endl;
                 } else {
@@ -73,7 +75,9 @@ public:
                 close(cfd);
                 close(ffd);
             } catch (const std::exception &e) {
-                socket << "Error: " << e.what() << endl;
+                if (socket.getFd() >= 0) {
+                    socket << "Error: " << e.what() << endl;
+                }
             }
         });
     }

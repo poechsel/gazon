@@ -51,7 +51,7 @@ public:
     Path relativePath;
 
     /// The thread pool in which to allocate file jobs.
-    ThreadPool<int, 8> *fpool = nullptr;
+    ThreadPool<FileKeyThread, 8> *fpool = nullptr;
 
     Context(): relativePath("") {}
 

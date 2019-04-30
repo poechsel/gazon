@@ -20,8 +20,11 @@ std::tuple<Command*, CommandArgsString> commandFromInput(std::string const& inpu
     start = stop_command_name;
     while (start < input.size()) {
         start = skipEmptyChars(start, input);
-        uint end = skipArg(start, input);
-        std::string arg = input.substr(start, end - start);
+	uint end; bool isEscaped;
+	std::tie(end, isEscaped) = skipArg(start, input);
+	uint estart = start + isEscaped;
+	uint eend = end - isEscaped;
+        std::string arg = input.substr(estart, eend - estart);
         start = end;
         if (arg.size() > 0)
             command_args.push_back(arg);
