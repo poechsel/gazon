@@ -26,7 +26,6 @@ std::tuple<Command*, CommandArgsString> commandFromInput(std::string const& inpu
 	uint eend = end - isEscaped;
         std::string arg = input.substr(estart, eend - estart);
         start = end;
-	std::cout<<"read arg "<<arg<<"\n";
         if (arg.size() > 0)
             command_args.push_back(arg);
     }

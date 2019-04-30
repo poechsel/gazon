@@ -109,7 +109,7 @@ void Config::fromFile(std::string path) {
             || Config::base_directory == "") {
             throw ConfigException(path, 0, "incorrect grass.conf");
         }
-        Config::temp_directory = Config::base_directory + "/.tmp/";
+        Config::temp_directory = Config::base_directory + "/.tmp";
 
         if (::mkdir(Config::temp_directory.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) == -1 && errno != EEXIST ) {
             throw ConfigException(path, 0, "Can't create temp directory");
