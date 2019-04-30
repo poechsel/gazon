@@ -30,9 +30,10 @@ public:
         enforce(getsockname(ffd, (struct sockaddr *) &addr, &addrLength));
         int port = ntohs(addr.sin_port);
 
+        FileKeyThread key(args[0].get<Path>().string());
         // Schedule on a separate pool to allow a more fine-grained
         // control of the number of parallel file transfers possible.
-        context.fpool->schedule(port, [&socket, &context, args, port, ffd]() {
+        context.fpool->schedule(key, [&socket, &context, args, port, ffd]() {
             try {
                 Path path = context.getAbsolutePath() + args[0].get<Path>();
                 File input = Filesystem::read(path);
@@ -49,7 +50,7 @@ public:
                 int cfd = accept(ffd, nullptr, nullptr);
                 enforce(cfd);
                 cout << "[INFO] Started sending file " << path.string() << "." << endl;
-                
+
                 char buffer[4096];
                 int bytesRead;
                 while ((bytesRead = input.read(buffer, 4096))) {
@@ -62,7 +63,9 @@ public:
                 close(ffd);
                 input.close();
             } catch (const std::exception &e) {
-                socket << "Error: " << e.what() << endl;
+                if (socket.getFd() >= 0) {
+                    socket << "Error: " << e.what() << endl;
+                }
             }
         });
     }

@@ -31,6 +31,7 @@ const char* ConfigException::what() const throw(){
 }
 
 uint16_t Config::port = 0;
+bool Config::stopRequested = false;
 std::string Config::base_directory = "";
 std::string Config::temp_directory = "";
 std::unordered_map<std::string, std::string> Config::m_users_pwd;

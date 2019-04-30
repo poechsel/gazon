@@ -6,6 +6,12 @@
 #include <stdexcept>
 #include <unordered_map>
 
+struct StopException : public std::exception {
+    StopException() {}
+    const char* what () const throw () {
+        return "";
+    }
+};
 
 struct ConfigException : public std::exception {
 public:
@@ -25,6 +31,7 @@ class Config {
 public:
     static void fromFile(std::string path);
     static uint16_t port;
+    static bool stopRequested;
     static std::string base_directory;
     static std::string temp_directory;
 
