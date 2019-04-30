@@ -39,24 +39,24 @@ uint skipUntil(uint start, std::string const &s, std::string const &chars) {
     return end;
 }
 
-uint skipArg(uint start, std::string const &s) {
+std::tuple<uint, bool> skipArg(uint start, std::string const &s) {
     uint end = start;
     if (s[start] == '\'') {
         end = start + 1;
         for (uint i = start + 1; i < s.size() && s[i] != '\''; ++i) {
             end = i + 1;
         }
-        return end+1;
+        return std::make_tuple(end+1, true);
     } else if (s[start] == '"') {
         end = start + 1;
         for (uint i = start + 1; i < s.size() && !(s[i] == '"' && s[i-1] != '\\'); ++i) {
             end = i + 1;
         }
-        return end+1;
+        return std::make_tuple(end+1, true);
     } else {
         end = skipNonEmptyChars(start, s);
     }
-    return end;
+    return std::make_tuple(end, false);
 }
 
 
