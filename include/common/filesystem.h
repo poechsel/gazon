@@ -27,6 +27,9 @@
 #include <common/file.h>
 
 /* An entry of the filesystem.
+   An entry can either be a folder or a file.
+
+
    Completely thread-unsafe.
    You must ensure that no concurrent read or writes on this happens.
    If you're getting a FilesystemEntry from `Filesystem`, you should call
@@ -44,17 +47,26 @@ public:
     // If children is empty this represents a file
     // Otherwise a folder
     std::unordered_map<std::string, FilesystemEntry*> children;
+
     // For files: size of the file on the disk
     // For folders: size of the folder (sum of all size of all chidren)
     size_t size;
 
-    // Count of all the children recursively, including files and folders
+    // Number of items under the current node.
+    // That is, number of subfiles and subfolders recursively.
+    // Does not include this current item. For exemple, for the filesystem
+    // {/home/foo, /home/bar, /home/baz/abcd}, this will be 4
+    // (two subfiles foo, bar, one subdirectory baz and one subsubfile abcd).
     size_t nRecChildren;
-    // Count of all sub folders
+
+    // Count of all sub folders of this current node
+    // For the previous example it is 1
     size_t nSubFolders;
 
     bool isFolder;
 
+    // Get a the subentry corresponding the a file/folder
+    // of name [name]. Create it if it doesn't exists
     FilesystemEntry* get(std::string name) {
         if (children.find(name) == children.end()) {
             children[name] = new FilesystemEntry;

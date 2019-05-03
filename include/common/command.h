@@ -100,10 +100,12 @@ public:
     Command(MiddlewareTypes middlewareTypes):
         m_middlewareTypes(middlewareTypes) {
     }
+    virtual ~Command(){}
     virtual void execute(Socket &socket, Context &context, const CommandArgs& args) = 0;
     virtual Specification getSpecification() const = 0;
-    bool middleware(Context &context) const;
-    virtual ~Command(){}
+    void middleware(Context &context, int *status) const;
+    /* Return true if the argument list matches the specification */
+    CommandArgs convertAndTypecheckArguments(const Context &context, CommandArgsString const &args) const;
 protected:
     MiddlewareTypes m_middlewareTypes;
 };
@@ -131,15 +133,12 @@ private:
     static std::unordered_map<std::string, Constructor> *m_constructors;
 };
 
-/* return the command corresponding to the input line `line` and the index of
-   the start of the args.
+/* return the command corresponding to the input line `line` and the parsed arguments
+   (but not typechecked)
    Ex:
-   (6, command_hello) = commandFromInput("hello a b c d e");
+   (command_helo, {"a", ..., "e"}) = commandFromInput("hello a b c d e");
 */
 std::tuple<Command*, CommandArgsString> commandFromInput(std::string const& line);
-
-/* Return true if the argument list matches the specification */
-CommandArgs convertAndTypecheckArguments(const Context &context, Specification const& spec, CommandArgsString const &args);
 
 // /* Evaluate the command express in line [line] */
 // void evaluateCommandFromLine(Context *context, std::string const& line, bool onServer = true);

@@ -34,16 +34,28 @@ std::tuple<Command*, CommandArgsString> commandFromInput(std::string const& inpu
 
 static std::regex hostnameRegex("^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*"
                                 "([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\-]*[A-Za-z0-9])$");
+void checkContainsNoNullBytesAndThrow(const std::string &s) {
+    for (uint64_t j = 0; j < s.size(); ++j) {
+        if (!s[j])
+            throw CommandException("incorrect path.");
+    }
+}
 
-CommandArgs convertAndTypecheckArguments(const Context &context, Specification const& spec, CommandArgsString const& args) {
+CommandArgs Command::convertAndTypecheckArguments(const Context &context, CommandArgsString const& args) const {
+    Path argpath;
+    Specification const &spec = getSpecification();
     if (spec.size() != args.size())
         throw CommandException("number of arguments doesn't match");
     std::vector<CommandArg> converted;
-    for (uint i = 0; i < spec.size(); ++i) {
+    for (uint64_t npath, i = 0; i < spec.size(); ++i) {
         CommandArg arg;
         switch (spec[i]) {
             case ARG_PATH: { // File path.
-                Path argpath(args[i]);
+                npath++;
+                // A path can't contain any null bytes (this is specified by posix!)
+                if (args[i].find((char)0) != std::string::npos)
+                    throw CommandException("incorrect path.");
+                Path argpath(args[i], &context);
                 // The path passed as argument can be either relative or absolute, but
                 // always to the base directory. In any case, we add it to the relative
                 // path in the context. If this argpath is relative, the behavior is as
@@ -90,35 +102,40 @@ CommandArgs convertAndTypecheckArguments(const Context &context, Specification c
 }
 
 /** Checks whether the command can proceed to execution. */
-bool Command::middleware(Context &context) const {
+void Command::middleware(Context &context, int *status) const {
     if (m_middlewareTypes != MIDDLEWARE_LOGGING)
         context.isLoggingIn = false;
 
     switch (m_middlewareTypes) {
         /// No additional checks needed.
         case MIDDLEWARE_NONE:
-            return true;
+            *status = true;
+            break;
 
         /// User should have filled their username.
         case MIDDLEWARE_LOGGING:
             if (context.isLoggingIn) {
-                return true;
+                *status = true;
             } else {
                 context.isLogged = false;
                 context.user = "";
-                return false;
+                *status = false;
             }
+            break;
 
         /// User should be logged in.
         case MIDDLEWARE_LOGGED:
-            return context.isLogged;
+            *status = context.isLogged;
+            break;
 
         /// User should be logged out.
         case MIDDLEWARE_LOGGED_OUT:
-            return !context.isLogged;
+            *status = !context.isLogged;
+            break;
 
         /// Unknown middleware.
         default:
-            return false;
+            *status = true;
+            break;
     }
 }

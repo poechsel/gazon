@@ -6,8 +6,8 @@ public:
 
     void execute(Socket &, Context &context, const CommandArgs &args) {
         std::string user = args[0].get<std::string>();
+        context.user = user;
         if (Config::userExists(user)) {
-            context.user = user;
             context.isLoggingIn = true;
         } else {
             throw CommandException("Unknown user: " + user);

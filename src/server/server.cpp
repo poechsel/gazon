@@ -54,11 +54,13 @@ void run(Socket &server, std::unordered_map<int, Context> &contexts,
                 try {
                     // Parse the packet and type-check its arguments.
                     std::tie(command, argsString) = commandFromInput(packet);
-                    CommandArgs args = convertAndTypecheckArguments(
-                        context, command->getSpecification(), argsString
+                    int status;
+                    command->middleware(context, &status);
+                    CommandArgs args = command->convertAndTypecheckArguments(
+                        context, argsString
                     );
 
-                    if (!command->middleware(context)) {
+                    if (!status) {
                         throw CommandException("access denied.");
                     }
 
