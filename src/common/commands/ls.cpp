@@ -145,7 +145,7 @@ public:
     LsCommand(): Command(MIDDLEWARE_LOGGED) {}
     static std::array<std::string, 24> date_fmt;
 
-    void my_ls(Path path, Socket &socket) {
+    void customLs(Path path, Socket &socket) {
         std::vector<Lsdata> files;
         Lsmaxlength length = {0, 0, 0, 0, 0, 0, 0};
         int nblocks = 0;
@@ -221,14 +221,7 @@ public:
 
 
     void execute(Socket &socket, Context &context, const CommandArgs &) {
-
-        if (true) {
-            my_ls(context.getAbsolutePath(), socket);
-        } else {
-            //TODO add sanitization
-            socket << exec(std::string("ls -l ")
-                           + context.getAbsolutePath().string()) << "\n";
-        }
+        customLs(context.getAbsolutePath(), socket);
     }
 
     Specification getSpecification() const {
