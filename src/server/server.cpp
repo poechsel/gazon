@@ -15,9 +15,9 @@
 using std::cout;
 using std::endl;
 
-void runGazon(Socket &server, std::unordered_map<int, Context> &contexts,
-              std::mutex &contexts_mutex,
-              ThreadPool<int, 4> &tpool, ThreadPool<FileKeyThread, 8> &fpool) {
+void run(Socket &server, std::unordered_map<int, Context> &contexts,
+         std::mutex &contexts_mutex,
+         ThreadPool<int, 4> &tpool, ThreadPool<FileKeyThread, 8> &fpool) {
     try {
         Config::fromFile("grass.conf");
         Filesystem::scan(Config::base_directory);
@@ -92,13 +92,14 @@ void runGazon(Socket &server, std::unordered_map<int, Context> &contexts,
     }
 }
 
-void stopGazon(int) {
-    cout << "[INFO] The server will stop on the next request (press again Ctrl-C to force stop)\n";
+void stop(int) {
     if (Config::stopRequested) {
-        cout << "[INFO] force stop\n";
+        cout << "[INFO] The server will now stop." << endl;
         exit(0);
+    } else {
+        cout << "[INFO] The server will stop on the next SIGINT (press Ctrl-C again)." << endl;
+        Config::stopRequested = true;
     }
-    Config::stopRequested = true;
 }
 
 int main() {
@@ -119,9 +120,8 @@ int main() {
     std::unordered_map<int, Context> contexts;
     std::mutex contexts_mutex;
 
-    signal (SIGINT, stopGazon);
-
-    runGazon(server, contexts, contexts_mutex, tpool, fpool);
+    signal(SIGINT, stop);
+    run(server, contexts, contexts_mutex, tpool, fpool);
 
     // Wait until all the threads are finished executing.
     tpool.join();

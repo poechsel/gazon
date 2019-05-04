@@ -108,9 +108,6 @@ void sendFile(string path, string ip, unsigned int port) {
     input.close();
 }
 
-static string currentGet(""); // FIXME(liautaud): Replace with a queue.
-static string currentPut(""); // FIXME(liautaud): Replace with a queue.
-
 /** Run the client with given input and output streams. */
 void run(
     const CliArguments &args, Socket &socket, Pool &pool,
@@ -119,20 +116,7 @@ void run(
     // Read the input and send it continuously.
     pool.schedule(1, [&](){
         string p;
-        regex getRegex("get ([^[:space:]]+)");
-        regex putRegex("put ([^[:space:]]+) [[:digit:]]+");
-        smatch match;
-
         while (input(p)) {
-            // When we request a get or a put, we must store the corresponding
-            // filename to a local queue so that we can retrieve it later when
-            // we receive the get: or put: reply from the server.
-            if (regex_search(p, match, getRegex)) {
-                currentGet = match[1];
-            } else if (regex_search(p, match, putRegex)) {
-                currentPut = match[1];
-            }
-
             socket << p << endl;
             this_thread::sleep_for(chrono::milliseconds(100));
         }
@@ -141,8 +125,8 @@ void run(
     // Read from the socket and print continuously.
     pool.schedule(2, [&](){
         string p;
-        regex getRegex("get port: ([[:digit:]]+) size: ([[:digit:]]+)");
-        regex putRegex("put port: ([[:digit:]]+)");
+        regex getRegex("get port: ([[:digit:]]+) size: ([[:digit:]]+) path: (.+)");
+        regex putRegex("put port: ([[:digit:]]+) path: (.+)");
         smatch match;
 
         while (true) {
@@ -151,10 +135,10 @@ void run(
             if (regex_search(p, match, getRegex)) {
                 unsigned int port = static_cast<unsigned int>(stoul(match[1]));
                 int size = stoi(match[2]);
-                thread(receiveFile, currentGet, args.serverIp, port, size).detach();
+                thread(receiveFile, match[3], args.serverIp, port, size).detach();
             } else if (regex_search(p, match, putRegex)) {
                 unsigned int port = static_cast<unsigned int>(stoul(match[1]));
-                thread(sendFile, currentPut, args.serverIp, port).detach();
+                thread(sendFile, match[2], args.serverIp, port).detach();
             } else {
                 output(p);
             }

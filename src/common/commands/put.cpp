@@ -19,7 +19,7 @@ public:
         }
 
         // We will use socket.h functions here directly as the code would
-        // be harder to write using the Socket abstraction. 
+        // be harder to write using the Socket abstraction.
         int ffd = ::socket(AF_INET, SOCK_STREAM, 0);
         enforce(ffd);
 
@@ -41,7 +41,8 @@ public:
                 int size = args[1].get<int>();
 
                 // Signal to the client that it can start to push data.
-                socket << "put port: " << std::to_string(port) << endl;
+                socket << "put port: " << std::to_string(port)
+                       << " path: " << args[0].get<Path>().string() << endl;
 
                 enforce(listen(ffd, SOMAXCONN) < 0);
                 cout << "[INFO] Awaiting connection for file "

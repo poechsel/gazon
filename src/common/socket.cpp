@@ -54,7 +54,7 @@ Address Socket::getAddress() const {
     if (::getsockname(fd, (struct sockaddr *) &address, &addressLength) < 0) {
         throw NetworkingException(formatError("Could not retrieve address"));
     }
-    
+
     return address;
 }
 
