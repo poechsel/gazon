@@ -44,7 +44,7 @@ public:
         }
     }
 
-    void my_grep_safe(Socket &socket, Context &context, Regex &regex, short *line_positions,
+    void my_grep_safe(Context &context, Regex &regex, short *line_positions,
                   std::vector<std::string> &matched_files) {
         Filesystem::lock();
         DEFER(Filesystem::unlock());
@@ -56,7 +56,7 @@ public:
         short line_positions[GrepCommand_LIMIT_N_FILE];
         std::vector<std::string> matched_files;
 
-        my_grep_safe(socket, context, regex, line_positions, matched_files);
+        my_grep_safe(context, regex, line_positions, matched_files);
 
         for (unsigned int i = 0; i < matched_files.size(); ++i) {
             socket << matched_files[i] << "\n";
@@ -86,18 +86,17 @@ public:
             Regex regex(".*" + pattern + ".*");
             my_grep(socket, context, regex);
         } else {
-            //TODO add sanitization
-            //TODO is the sort really needed?
+            // The pattern is already escaped since it is of type ARG_PATTERN.
             std::string cmd = "cd " + context.getAbsolutePath().string() +
-                "; grep -Rl --exclude-dir=" + Config::temp_directory + " "
-                + pattern + " * | sort";
+                "; grep -Rl --exclude-dir=" + Config::temp_directory +
+                " -E '" + pattern + "' * | sort";
 
             socket << exec(cmd) << std::endl;
         }
     }
 
     Specification getSpecification() const {
-        return {ARG_STR};
+        return {ARG_PATTERN};
     }
 private:
 };

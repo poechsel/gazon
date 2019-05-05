@@ -81,7 +81,9 @@ std::vector<std::string> splitString(const std::string &s, char sep) {
 std::string exec(std::string cmd) {
     std::array<char, 256> buffer;
     std::string result = "";
-    FILE* pipe = popen((cmd + " 2>&1").c_str(), "r");
+    std::string command = cmd + " 2>&1";
+    std::cout << "[INFO] Executing `" << command << "`." << std::endl;
+    FILE* pipe = popen(command.c_str(), "r");
     if (!pipe) {
         throw std::runtime_error("popen() failed!");
     }
@@ -91,8 +93,8 @@ std::string exec(std::string cmd) {
         }
     } catch (const std::exception& e) {
         pclose(pipe);
-        // TODO: throw exception
         result = "";
+        throw CommandException(e.what());
     }
     pclose(pipe);
     if (result.size() == 0 || result[result.size() - 1] != '\n')

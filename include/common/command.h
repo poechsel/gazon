@@ -6,6 +6,7 @@
 #include <functional>
 #include <iostream>
 #include <mutex>
+#include <regex>
 #include <common/common.h>
 #include <common/socket.h>
 #include <common/path.h>
@@ -17,7 +18,8 @@ enum ArgTypes {
     ARG_PATH,
     ARG_INT,
     ARG_STR,
-    ARG_DOMAIN,
+    ARG_HOSTNAME,
+    ARG_PATTERN,
 };
 
 typedef std::vector<std::string> CommandArgsString;

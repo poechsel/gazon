@@ -5,13 +5,13 @@ public:
     PingCommand(): Command(MIDDLEWARE_NONE) {}
 
     void execute(Socket &socket, Context &, const CommandArgs &args) {
-        // TODO: add protection
         std::string address = args[0].get<std::string>();
-        socket << exec("ping " + address + " -c 1");
+        // The hostname is already escaped since it is of type ARG_HOSTNAME.
+        socket << exec("ping '" + address + "' -c 1");
     }
 
     Specification getSpecification() const {
-        return {ARG_DOMAIN};
+        return {ARG_HOSTNAME};
     }
 private:
 };
