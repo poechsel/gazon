@@ -1,0 +1,16 @@
+ls
+login u1
+ls
+pass p1
+login u1
+pass wrong-pass
+login u1
+pass p1
+whoami
+ls
+login u2
+pass p2
+whoami
+logout
+whoami
+ls

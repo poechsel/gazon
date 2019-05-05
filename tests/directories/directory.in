@@ -1,0 +1,13 @@
+login u1
+pass p1
+ls
+cd dir1
+mkdir dir1
+cd dir1
+ls
+mkdir dir2
+ls
+rm dir2
+ls
+cd ..
+ls
