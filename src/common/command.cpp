@@ -32,8 +32,8 @@ std::tuple<Command*, CommandArgsString> commandFromInput(std::string const& inpu
     return make_tuple(command, command_args);
 }
 
-static std::regex hostnameRegex("^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*"
-                                "([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9])$");
+static std::regex hostnameRegex("^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*"
+                                "([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\-]*[A-Za-z0-9])$");
 
 CommandArgs convertAndTypecheckArguments(const Context &context, Specification const& spec, CommandArgsString const& args) {
     if (spec.size() != args.size())
