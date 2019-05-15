@@ -1,11 +1,17 @@
 #include <common/common.h>
 #include <errno.h>
+#include <regex>
 
 /** Return a formatted string containing the current value of errno. */
 std::string formatError(const std::string& message) {
     std::stringstream error;
     error << message << ": " << ::strerror(errno) << ".";
     return error.str();
+}
+
+/** Quote a string to safely insert it inside a shell command. */
+std::string quote(const std::string &s) {
+    return "'" + std::regex_replace(s, std::regex("'"), "'\"'\"'") + "'";
 }
 
 /** Enforce that the result of a function to be >= 0. */

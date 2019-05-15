@@ -42,6 +42,9 @@ public:
 /** Return a formatted string containing the current value of errno. */
 std::string formatError(const std::string& message);
 
+/** Quote a string to safely insert it inside a shell command. */
+std::string quote(const std::string &s);
+
 /** Enforce that the result of a function to be >= 0. */
 void enforce(int i);
 

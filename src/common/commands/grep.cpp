@@ -101,10 +101,9 @@ public:
             Regex regex(".*" + pattern + ".*");
             my_grep(socket, context, regex);
         } else {
-            // The pattern is already escaped since it is of type ARG_PATTERN.
-            std::string cmd = "cd " + context.getAbsolutePath().string() +
+            std::string cmd = "cd " + quote(context.getAbsolutePath().string()) +
                 "; grep -Rl --exclude-dir=" + Config::temp_directory +
-                " -E '" + pattern + "' * | sort";
+                " -E " + quote(pattern) + " * | sort";
 
             socket << exec(cmd) << std::endl;
         }
