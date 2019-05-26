@@ -14,6 +14,10 @@ Y8b d88P      <b>GRASS - Grep as a Service</b>
 Pierre Oechsel: 294718  
 Romain Liautaud: 298634  
 
+## Password to open our exploits.zip archive:
+
+`App34r_wEak_whEn_y0U_Are_sTr0ng_4nD_strOng_When_yOu_arE_weaK`
+
 ## About this project.
 
 _Gazon_ is our implementation of the _GRASS_ protocol, a simple file transfer protocol designed as an excuse to apply engineering practices from the CS-412 course at EPFL. It is implemented in C++11, and requires no external dependencies.
